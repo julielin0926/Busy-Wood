@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>森林搬搬忙</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell">
+    <section class="top-panel">
+      <div>
+        <h1>森林搬搬忙</h1>
+        <p>60 秒內把木頭搬回小屋，挑戰最高分。</p>
+      </div>
+      <div class="score-board">
+        <span>時間 <strong id="timeText">60</strong></span>
+        <span>分數 <strong id="scoreText">0</strong></span>
+      </div>
+    </section>
+
+    <canvas id="gameCanvas" width="900" height="560"></canvas>
+
+    <section class="bottom-panel">
+      <div>
+        <label for="playerName">玩家名稱</label>
+        <input id="playerName" maxlength="12" placeholder="輸入名稱">
+      </div>
+      <div class="button-row">
+        <button id="startButton">開始遊戲</button>
+        <button id="restartButton" disabled>重新開始</button>
+      </div>
+      <p id="messageText">按「開始遊戲」後，用 WASD 或方向鍵移動，靠近木頭按 Space 撿起，再回小屋按 Space 放下。</p>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
