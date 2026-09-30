@@ -7,8 +7,17 @@ const messageText = document.getElementById("messageText");
 const playerNameInput = document.getElementById("playerName");
 const startButton = document.getElementById("startButton");
 const restartButton = document.getElementById("restartButton");
+const rankingList = document.getElementById("rankingList");
 
 const keys = {};
+const rankingStorageKey = "forestCarryRanking";
+
+const assets = {
+  background: loadImage("assets/forest-background.png"),
+  otter: loadImage("assets/otter.png"),
+  fox: loadImage("assets/fox.png"),
+  wood: loadImage("assets/wood.png"),
+};
 
 const game = {
   running: false,
@@ -20,16 +29,16 @@ const game = {
 
 const player = {
   x: 450,
-  y: 280,
-  size: 28,
+  y: 300,
+  size: 58,
   speed: 240,
 };
 
 const cabin = {
-  x: 760,
-  y: 220,
-  width: 96,
-  height: 96,
+  x: 746,
+  y: 190,
+  width: 118,
+  height: 150,
 };
 
 const wood = {
@@ -37,6 +46,12 @@ const wood = {
   y: 160,
   size: 26,
   visible: true,
+};
+
+const fox = {
+  x: 675,
+  y: 432,
+  size: 42,
 };
 
 function resetGame() {
@@ -70,10 +85,14 @@ function startGame() {
 }
 
 function endGame() {
+  const playerName = playerNameInput.value.trim();
+
   game.running = false;
   startButton.disabled = false;
   restartButton.disabled = false;
-  messageText.textContent = `遊戲結束！本局分數：${game.score}。`;
+  saveScore(playerName, game.score);
+  renderRanking();
+  messageText.textContent = `遊戲結束！${playerName} 本局分數：${game.score}。`;
 }
 
 function gameLoop(timestamp) {
@@ -170,74 +189,307 @@ function updateHud() {
   scoreText.textContent = game.score;
 }
 
+function loadRanking() {
+  const savedRanking = localStorage.getItem(rankingStorageKey);
+
+  if (!savedRanking) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(savedRanking);
+  } catch {
+    return [];
+  }
+}
+
+function saveScore(playerName, score) {
+  const ranking = loadRanking();
+  const oldRecord = ranking.find((record) => record.name === playerName);
+
+  if (oldRecord) {
+    oldRecord.score = Math.max(oldRecord.score, score);
+  } else {
+    ranking.push({
+      name: playerName,
+      score,
+    });
+  }
+
+  ranking.sort((a, b) => b.score - a.score);
+  localStorage.setItem(rankingStorageKey, JSON.stringify(ranking.slice(0, 10)));
+}
+
+function renderRanking() {
+  const ranking = loadRanking();
+  rankingList.innerHTML = "";
+
+  if (ranking.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.textContent = "目前還沒有紀錄。";
+    rankingList.appendChild(emptyItem);
+    return;
+  }
+
+  ranking.forEach((record) => {
+    const item = document.createElement("li");
+    item.textContent = `${record.name}：${record.score} 分`;
+    rankingList.appendChild(item);
+  });
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  drawGround();
-  drawCabin();
+  if (assets.background.complete) {
+    ctx.drawImage(assets.background, 0, 0, canvas.width, canvas.height);
+  } else {
+    drawGround();
+  }
 
   if (wood.visible) {
     drawWood(wood.x, wood.y);
   }
 
+  drawFox(fox.x, fox.y);
   drawPlayer();
 }
 
 function drawGround() {
-  ctx.fillStyle = "#7fbd67";
+  const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  skyGradient.addColorStop(0, "#f8efd2");
+  skyGradient.addColorStop(0.55, "#ead7a8");
+  skyGradient.addColorStop(1, "#9f8d54");
+  ctx.fillStyle = skyGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
-  for (let i = 0; i < 18; i += 1) {
-    ctx.beginPath();
-    ctx.arc(40 + i * 52, 80 + (i % 4) * 110, 22, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
+  drawCloud(42, 92, 1.1);
+  drawCloud(705, 95, 0.8);
 
-function drawCabin() {
-  ctx.fillStyle = "#8a5732";
-  ctx.fillRect(cabin.x, cabin.y + 30, cabin.width, cabin.height - 30);
-
-  ctx.fillStyle = "#5b2f1f";
+  ctx.fillStyle = "rgba(218, 171, 96, 0.55)";
   ctx.beginPath();
-  ctx.moveTo(cabin.x - 12, cabin.y + 34);
-  ctx.lineTo(cabin.x + cabin.width / 2, cabin.y - 18);
-  ctx.lineTo(cabin.x + cabin.width + 12, cabin.y + 34);
+  ctx.arc(128, 78, 22, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#8a8149";
+  ctx.beginPath();
+  ctx.moveTo(0, 410);
+  ctx.bezierCurveTo(140, 365, 255, 432, 410, 388);
+  ctx.bezierCurveTo(560, 345, 690, 390, 900, 350);
+  ctx.lineTo(900, 560);
+  ctx.lineTo(0, 560);
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = "#ffe7a3";
-  ctx.fillRect(cabin.x + 36, cabin.y + 56, 24, 40);
+  ctx.fillStyle = "rgba(255, 244, 205, 0.5)";
+  ctx.beginPath();
+  ctx.moveTo(470, 560);
+  ctx.bezierCurveTo(540, 500, 608, 468, 750, 360);
+  ctx.bezierCurveTo(725, 410, 650, 475, 540, 560);
+  ctx.closePath();
+  ctx.fill();
+}
 
-  ctx.fillStyle = "#24351f";
+function drawForest() {
+  for (let i = 0; i < 9; i += 1) {
+    drawPineTree(44 + i * 86, 318 + (i % 3) * 12, 0.82 + (i % 2) * 0.18);
+  }
+
+  drawTallTree(835, 246, 1.1);
+  drawTallTree(875, 230, 1.25);
+}
+
+function drawCloud(x, y, scale) {
+  ctx.fillStyle = "rgba(255, 249, 230, 0.55)";
+  ctx.strokeStyle = "rgba(170, 138, 91, 0.22)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y + 18 * scale, 34 * scale, Math.PI, Math.PI * 2);
+  ctx.arc(x + 40 * scale, y, 42 * scale, Math.PI, Math.PI * 2);
+  ctx.arc(x + 88 * scale, y + 20 * scale, 36 * scale, Math.PI, Math.PI * 2);
+  ctx.lineTo(x + 120 * scale, y + 42 * scale);
+  ctx.lineTo(x - 36 * scale, y + 42 * scale);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawPineTree(x, y, scale) {
+  ctx.strokeStyle = "#5b4728";
+  ctx.lineWidth = 3;
+  ctx.fillStyle = "#84753e";
+  ctx.fillRect(x - 5 * scale, y - 8 * scale, 10 * scale, 62 * scale);
+
+  for (let layer = 0; layer < 5; layer += 1) {
+    const top = y - 112 * scale + layer * 28 * scale;
+    const width = (34 + layer * 13) * scale;
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x - width, top + 48 * scale);
+    ctx.quadraticCurveTo(x, top + 36 * scale, x + width, top + 48 * scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function drawTallTree(x, y, scale) {
+  ctx.strokeStyle = "#3d241b";
+  ctx.lineCap = "round";
+  ctx.lineWidth = 13 * scale;
+  ctx.beginPath();
+  ctx.moveTo(x, y + 260 * scale);
+  ctx.lineTo(x + 10 * scale, y);
+  ctx.stroke();
+
+  ctx.lineWidth = 7 * scale;
+  [[-6, 105, -54, 42], [8, 130, 46, 72], [2, 70, 52, 10], [12, 180, 62, 132]].forEach(([sx, sy, ex, ey]) => {
+    ctx.beginPath();
+    ctx.moveTo(x + sx * scale, y + sy * scale);
+    ctx.lineTo(x + ex * scale, y + ey * scale);
+    ctx.stroke();
+  });
+}
+
+function drawCabin() {
+  const x = cabin.x - 28;
+  const y = cabin.y - 10;
+  const width = cabin.width + 46;
+  const height = cabin.height + 22;
+
+  ctx.fillStyle = "#bb6f32";
+  ctx.strokeStyle = "#5c2c1b";
+  ctx.lineWidth = 3;
+  ctx.fillRect(x + 10, y + 64, width - 20, height - 48);
+  ctx.strokeRect(x + 10, y + 64, width - 20, height - 48);
+
+  ctx.strokeStyle = "rgba(92, 44, 27, 0.32)";
+  ctx.lineWidth = 2;
+  for (let lineY = y + 78; lineY < y + height + 4; lineY += 16) {
+    ctx.beginPath();
+    ctx.moveTo(x + 16, lineY);
+    ctx.lineTo(x + width - 18, lineY + Math.sin(lineY) * 2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#6b2e1f";
+  ctx.strokeStyle = "#3d2018";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y + 70);
+  ctx.lineTo(x + width / 2, y + 12);
+  ctx.lineTo(x + width + 2, y + 70);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(39, 19, 13, 0.35)";
+  ctx.lineWidth = 2;
+  for (let tileX = x + 18; tileX < x + width - 12; tileX += 22) {
+    ctx.beginPath();
+    ctx.arc(tileX, y + 66, 13, Math.PI, 0);
+    ctx.stroke();
+  }
+
+  drawWindow(x + 30, y + 92);
+  drawWindow(x + width - 58, y + 92);
+
+  ctx.fillStyle = "#f3dfbb";
+  ctx.strokeStyle = "#5c2c1b";
+  ctx.lineWidth = 3;
+  ctx.fillRect(x + width / 2 - 13, y + 100, 26, 42);
+  ctx.strokeRect(x + width / 2 - 13, y + 100, 26, 42);
+
+  ctx.fillStyle = "#3d2c1d";
   ctx.font = "20px Microsoft JhengHei";
-  ctx.fillText("小屋", cabin.x + 28, cabin.y + 126);
+  ctx.fillText("小屋", x + 50, y + 168);
+}
+
+function drawWindow(x, y) {
+  ctx.fillStyle = "#ffe7a3";
+  ctx.strokeStyle = "#5c2c1b";
+  ctx.lineWidth = 3;
+  ctx.fillRect(x, y, 26, 28);
+  ctx.strokeRect(x, y, 26, 28);
+  ctx.beginPath();
+  ctx.moveTo(x + 13, y);
+  ctx.lineTo(x + 13, y + 28);
+  ctx.moveTo(x, y + 14);
+  ctx.lineTo(x + 26, y + 14);
+  ctx.stroke();
 }
 
 function drawWood(x, y) {
-  ctx.fillStyle = "#8b5a2b";
-  ctx.fillRect(x - 18, y - 10, 36, 20);
+  if (assets.wood.complete) {
+    drawImageCentered(assets.wood, x, y, 48, 30);
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.12);
+  ctx.fillStyle = "#9b6530";
   ctx.strokeStyle = "#5d371c";
   ctx.lineWidth = 3;
-  ctx.strokeRect(x - 18, y - 10, 36, 20);
+  roundRect(-23, -10, 46, 20, 8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFox(x, y) {
+  if (assets.fox.complete) {
+    drawImageCentered(assets.fox, x, y, 72, 40);
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#d6792f";
+  ctx.beginPath();
+  ctx.ellipse(0, 8, 36, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function roundRect(x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
 }
 
 function drawPlayer() {
-  ctx.fillStyle = "#2f5fa8";
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "white";
-  ctx.font = "18px Microsoft JhengHei";
-  ctx.textAlign = "center";
-  ctx.fillText("人", player.x, player.y + 7);
-  ctx.textAlign = "left";
+  if (assets.otter.complete) {
+    drawImageCentered(assets.otter, player.x, player.y - 18, 44, 76);
+  } else {
+    ctx.fillStyle = "#2f5fa8";
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   if (game.carryingWood) {
-    drawWood(player.x, player.y - 28);
+    drawWood(player.x, player.y - 58);
   }
+}
+
+function drawImageCentered(image, centerX, centerY, width, height) {
+  ctx.drawImage(image, centerX - width / 2, centerY - height / 2, width, height);
+}
+
+function loadImage(src) {
+  const image = new Image();
+  image.src = src;
+  image.onload = draw;
+  return image;
 }
 
 function distance(a, b) {
@@ -269,3 +521,4 @@ startButton.addEventListener("click", startGame);
 restartButton.addEventListener("click", startGame);
 
 resetGame();
+renderRanking();
