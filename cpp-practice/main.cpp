@@ -21,6 +21,9 @@ struct Cabin {   //小屋結構體
 struct Tornado {    //龍捲風結構體
     int x;
     int y;
+    int direction;
+    int minX;
+    int maxX;
 };
 
 struct GameState {   //遊戲狀態結構體
@@ -84,20 +87,46 @@ void CheckTornadoHit(Player& player, Wood& wood, const Tornado& tornado) {      
     }
 }
 
+void MoveTornado(Tornado& tornado) {
+    tornado.x += tornado.direction;
+
+    if (tornado.x >= tornado.maxX) {
+        tornado.x = tornado.maxX;
+        tornado.direction = -1;
+    }
+
+    if (tornado.x <= tornado.minX) {
+        tornado.x = tornado.minX;
+        tornado.direction = 1;
+    }
+}
+
+void UpdateGame(Player& player, Wood& wood, Tornado& tornado, GameState& game, const Cabin& cabin) {
+    game.timeLeft -= 1;
+
+    MoveTornado(tornado);
+    CheckTornadoHit(player, wood, tornado);
+    DropWoodAtCabin(player, game, cabin);
+}
+
 int main() {
     Player player = {5, 5, false};
     Wood wood = {6, 5, true};
     Cabin cabin = {8, 5};
+    Tornado tornado = {7, 5, 1, 6, 8};
     GameState game = {0, 60};
 
     PrintGameState(player, wood, game);
 
     MovePlayer(player, 1, 0);
     PickUpWood(player, wood);
+    UpdateGame(player, wood, tornado, game, cabin);
 
     MovePlayer(player, 1, 0);
+    UpdateGame(player, wood, tornado, game, cabin);
+
     MovePlayer(player, 1, 0);
-    DropWoodAtCabin(player, game, cabin);
+    UpdateGame(player, wood, tornado, game, cabin);
 
     PrintGameState(player, wood, game);
 
