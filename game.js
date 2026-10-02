@@ -5,7 +5,12 @@ const timeText = document.getElementById("timeText");
 const scoreText = document.getElementById("scoreText");
 const messageText = document.getElementById("messageText");
 const playerNameInput = document.getElementById("playerName");
-const startButton = document.getElementById("startButton");
+const startScreen = document.getElementById("startScreen");
+const nameScreen = document.getElementById("nameScreen");
+const gameShell = document.getElementById("gameShell");
+const showNameButton = document.getElementById("showNameButton");
+const confirmNameButton = document.getElementById("confirmNameButton");
+const nameHint = document.getElementById("nameHint");
 const restartButton = document.getElementById("restartButton");
 const rankingList = document.getElementById("rankingList");
 
@@ -27,6 +32,7 @@ const game = {
   score: 0,
   carryingWood: false,
   stunTime: 0,
+  invincibleTime: 0,
 };
 
 const player = {
@@ -53,18 +59,29 @@ const wood = {
 const fox = {
   x: 675,
   y: 432,
+  startX: 675,
+  startY: 432,
   size: 42,
+  speed: 95,
+  stealRange: 38,
+  stolenCooldown: 0,
 };
 
 const tornadoes = [
   {
     x: 260,
     y: 380,
+    startX: 260,
+    startY: 380,
     radius: 34,
     speed: 105,
+    chaseSpeed: 140,
     direction: 1,
     minX: 130,
     maxX: 585,
+    minY: 260,
+    maxY: 480,
+    chaseRange: 100,
     spin: 0,
   },
 ];
@@ -76,13 +93,20 @@ function resetGame() {
   game.score = 0;
   game.carryingWood = false;
   game.stunTime = 0;
+  game.invincibleTime = 0;
 
-  tornadoes[0].x = 260;
+  tornadoes[0].x = tornadoes[0].startX;
+  tornadoes[0].y = tornadoes[0].startY;
   tornadoes[0].direction = 1;
   tornadoes[0].spin = 0;
 
   player.x = 450;
   player.y = 280;
+
+  fox.x = fox.startX;
+  fox.y = fox.startY;
+  fox.stolenCooldown = 0;
+
   spawnWood();
   updateHud();
   draw();
@@ -92,13 +116,16 @@ function startGame() {
   const playerName = playerNameInput.value.trim();
 
   if (!playerName) {
-    messageText.textContent = "請先輸入玩家名稱，再開始遊戲。";
+    nameHint.textContent = "請先輸入玩家名稱。";
     return;
   }
 
+  startScreen.classList.add("hidden");
+  nameScreen.classList.add("hidden");
+  gameShell.classList.remove("hidden");
+
   resetGame();
   game.running = true;
-  startButton.disabled = true;
   restartButton.disabled = false;
   messageText.textContent = `${playerName}，開始搬木頭吧！`;
   requestAnimationFrame(gameLoop);
@@ -108,7 +135,6 @@ function endGame() {
   const playerName = playerNameInput.value.trim();
 
   game.running = false;
-  startButton.disabled = false;
   restartButton.disabled = false;
   saveScore(playerName, game.score);
   renderRanking();
@@ -145,6 +171,11 @@ function update(deltaTime) {
   }
 
   updateTornadoes(deltaTime);
+  updateFox(deltaTime);
+
+  if (game.invincibleTime > 0) {
+  game.invincibleTime = Math.max(0, game.invincibleTime - deltaTime);
+  }
 
   if (game.stunTime > 0) {
     game.stunTime = Math.max(0, game.stunTime - deltaTime);
@@ -158,29 +189,103 @@ function update(deltaTime) {
 
 function updateTornadoes(deltaTime) {
   tornadoes.forEach((tornado) => {
-    tornado.x += tornado.speed * tornado.direction * deltaTime;
     tornado.spin += deltaTime * 8;
 
-    if (tornado.x > tornado.maxX) {
-      tornado.x = tornado.maxX;
-      tornado.direction = -1;
+    const playerDistance = distance(player, tornado);
+
+    if (playerDistance < tornado.chaseRange) {
+      const dx = player.x - tornado.x;
+      const dy = player.y - tornado.y;
+      const length = Math.hypot(dx, dy);
+
+      if (length > 0) {
+        tornado.x += (dx / length) * tornado.chaseSpeed * deltaTime;
+        tornado.y += (dy / length) * tornado.chaseSpeed * deltaTime;
+      }
+    } else {
+      tornado.x += tornado.speed * tornado.direction * deltaTime;
+
+      if (tornado.x > tornado.maxX) {
+        tornado.x = tornado.maxX;
+        tornado.direction = -1;
+      }
+
+      if (tornado.x < tornado.minX) {
+        tornado.x = tornado.minX;
+        tornado.direction = 1;
+      }
+
+      if (tornado.y < tornado.startY) {
+        tornado.y += tornado.speed * deltaTime;
+      }
+
+      if (tornado.y > tornado.startY) {
+        tornado.y -= tornado.speed * deltaTime;
+      }
     }
 
-    if (tornado.x < tornado.minX) {
-      tornado.x = tornado.minX;
-      tornado.direction = 1;
-    }
+    tornado.x = clamp(tornado.x, tornado.minX, tornado.maxX);
+    tornado.y = clamp(tornado.y, tornado.minY, tornado.maxY);
   });
 }
 
+function updateFox(deltaTime) {
+  if (fox.stolenCooldown > 0) {
+    fox.stolenCooldown = Math.max(0, fox.stolenCooldown - deltaTime);
+
+    if (fox.stolenCooldown === 0) {
+      spawnWood();
+      messageText.textContent = "狐狸把木頭丟到別的地方了！";
+    }
+
+    return;
+  }
+
+  if (!wood.visible || game.carryingWood) {
+    moveFoxBack(deltaTime);
+    return;
+  }
+
+  const dx = wood.x - fox.x;
+  const dy = wood.y - fox.y;
+  const length = Math.hypot(dx, dy);
+
+  if (length > 0) {
+    fox.x += (dx / length) * fox.speed * deltaTime;
+    fox.y += (dy / length) * fox.speed * deltaTime;
+  }
+
+  if (distance(fox, wood) < fox.stealRange) {
+    wood.visible = false;
+    fox.stolenCooldown = 2.0;
+    messageText.textContent = "狐狸偷走木頭了！";
+  }
+}
+
+function moveFoxBack(deltaTime) {
+  const dx = fox.startX - fox.x;
+  const dy = fox.startY - fox.y;
+  const length = Math.hypot(dx, dy);
+
+  if (length < 2) {
+    fox.x = fox.startX;
+    fox.y = fox.startY;
+    return;
+  }
+
+  fox.x += (dx / length) * fox.speed * deltaTime;
+  fox.y += (dy / length) * fox.speed * deltaTime;
+}
+
 function checkTornadoCollision() {
-  if (game.stunTime > 0) return;
+  if (game.stunTime > 0 || game.invincibleTime > 0) return;
 
   const hit = tornadoes.some((tornado) => distance(player, tornado) < tornado.radius + player.size * 0.28);
 
   if (!hit) return;
 
   game.stunTime = 1.1;
+  game.invincibleTime = 2.5;
 
   if (game.carryingWood) {
     game.carryingWood = false;
@@ -563,9 +668,9 @@ function roundRect(x, y, width, height, radius) {
 }
 
 function drawPlayer() {
-  if (game.stunTime > 0) {
-    ctx.save();
-    ctx.globalAlpha = 0.45 + Math.sin(Date.now() / 90) * 0.25;
+  if (game.stunTime > 0 || game.invincibleTime > 0) {
+  ctx.save();
+  ctx.globalAlpha = 0.45 + Math.sin(Date.now() / 90) * 0.25;
   }
 
   if (assets.otter.complete) {
@@ -581,8 +686,8 @@ function drawPlayer() {
     drawWood(player.x, player.y - 58);
   }
 
-  if (game.stunTime > 0) {
-    ctx.restore();
+  if (game.stunTime > 0 || game.invincibleTime > 0) {
+  ctx.restore();
   }
 }
 
@@ -622,7 +727,20 @@ window.addEventListener("keyup", (event) => {
   keys[event.key] = false;
 });
 
-startButton.addEventListener("click", startGame);
+showNameButton.addEventListener("click", function () {
+  startScreen.classList.add("hidden");
+  nameScreen.classList.remove("hidden");
+  playerNameInput.focus();
+});
+
+confirmNameButton.addEventListener("click", startGame);
+
+playerNameInput.addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    startGame();
+  }
+});
+
 restartButton.addEventListener("click", startGame);
 
 resetGame();

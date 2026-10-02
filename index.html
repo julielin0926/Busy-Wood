@@ -7,7 +7,20 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="game-shell">
+  <div id="startScreen" class="start-screen">
+    <h1>森林搬搬忙</h1>
+    <p>幫小動物搬木頭回小木屋，避開龍捲風，在時間內取得高分！</p>
+    <button id="showNameButton">開始遊戲</button>
+  </div>
+
+  <div id="nameScreen" class="name-screen hidden">
+    <h2>輸入玩家名稱</h2>
+    <input id="playerName" maxlength="12" placeholder="輸入名稱">
+    <button id="confirmNameButton">確認開始</button>
+    <p id="nameHint"></p>
+  </div>
+
+  <main id="gameShell" class="game-shell hidden">
     <section class="top-panel">
       <div>
         <h1>森林搬搬忙</h1>
@@ -22,15 +35,10 @@
     <canvas id="gameCanvas" width="900" height="560"></canvas>
 
     <section class="bottom-panel">
-      <div>
-        <label for="playerName">玩家名稱</label>
-        <input id="playerName" maxlength="12" placeholder="輸入名稱">
-      </div>
       <div class="button-row">
-        <button id="startButton">開始遊戲</button>
         <button id="restartButton" disabled>重新開始</button>
       </div>
-      <p id="messageText">按「開始遊戲」後，用 WASD 或方向鍵移動，靠近木頭按 Space 撿起，再回小屋按 Space 放下。</p>
+      <p id="messageText">用 WASD 或方向鍵移動，靠近木頭按 Space 撿起，再回小屋按 Space 放下。</p>
     </section>
 
     <section class="ranking-panel">
