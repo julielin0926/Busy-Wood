@@ -98,10 +98,10 @@ const aim = {
 };
 
 const fox = {
-  x: 110,
-  y: 470,
-  startX: 110,
-  startY: 470,
+  x: 82,
+  y: 515,
+  startX: 82,
+  startY: 515,
   size: 42,
   speed: 80,
   stealRange: 55,
@@ -115,9 +115,9 @@ const fox = {
 };
 
 const foxDen = {
-  x: 110,
-  y: 470,
-  radius: 42,
+  x: 82,
+  y: 500,
+  radius: 58,
 };
 
 const tornadoes = [
@@ -168,6 +168,8 @@ function resetGame() {
   tornadoes[0].mode = "patrol";
   tornadoes[0].chaseTimer = 0;
   tornadoes[0].chaseCooldown = 0;
+  tornadoes[0].targetWoodIndex = 0;
+  tornadoes[0].patrolTimer = 0;
   tornadoes[0].spin = 0;
 
   player.x = 450;
@@ -496,25 +498,32 @@ function chasePlayer(tornado, deltaTime) {
 }
 
 function patrolTornado(tornado, deltaTime) {
-  tornado.x += tornado.speed * tornado.direction * deltaTime;
+  if (woods.length === 0) return;
 
-  if (tornado.x > tornado.maxX) {
-    tornado.x = tornado.maxX;
-    tornado.direction = -1;
+  const targetWood = woods[tornado.targetWoodIndex % woods.length];
+  const patrolTarget = {
+    x: clamp(targetWood.x + 34, tornado.minX, tornado.maxX),
+    y: clamp(targetWood.y - 36, tornado.minY, tornado.maxY),
+  };
+
+  const dx = patrolTarget.x - tornado.x;
+  const dy = patrolTarget.y - tornado.y;
+  const length = Math.hypot(dx, dy);
+
+  if (length < 8) {
+    tornado.patrolTimer += deltaTime;
+
+    if (tornado.patrolTimer >= tornado.patrolDuration) {
+      tornado.targetWoodIndex = (tornado.targetWoodIndex + 1) % woods.length;
+      tornado.patrolTimer = 0;
+    }
+
+    return;
   }
 
-  if (tornado.x < tornado.minX) {
-    tornado.x = tornado.minX;
-    tornado.direction = 1;
-  }
-
-  if (tornado.y < tornado.startY) {
-    tornado.y += tornado.speed * deltaTime;
-  }
-
-  if (tornado.y > tornado.startY) {
-    tornado.y -= tornado.speed * deltaTime;
-  }
+  tornado.patrolTimer = 0;
+  tornado.x += (dx / length) * tornado.speed * deltaTime;
+  tornado.y += (dy / length) * tornado.speed * deltaTime;
 }
 
 function getCabinCenter() {
@@ -1071,7 +1080,7 @@ function drawTornado(tornado) {
 
 function drawFoxDen() {
   if (assets.foxDen.complete) {
-    drawImageCentered(assets.foxDen, foxDen.x, foxDen.y, 150, 110);
+    drawImageCentered(assets.foxDen, foxDen.x, foxDen.y, 190, 140);
     return;
   }
 
@@ -1322,6 +1331,8 @@ canvas.addEventListener("mouseup", (event) => {
 
   aim.active = false;
 });
+
+
 
 
 
