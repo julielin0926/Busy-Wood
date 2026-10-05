@@ -12,6 +12,97 @@
     <p>幫小動物搬木頭回小木屋，避開龍捲風，在時間內取得高分！</p>
     <button id="showNameButton">開始遊戲</button>
   </div>
+  <div id="tutorialScreen" class="tutorial-screen hidden">
+    <div class="tutorial-header">
+      <h2>遊戲說明</h2>
+      <p>先看懂玩法，再開始森林搬搬忙！</p>
+    </div>
+
+    <div class="tutorial-grid">
+      <article class="tutorial-card">
+        <div class="tutorial-visual move-keys">
+          <div class="wasd-keys">
+            <div class="key-row key-row-center">
+              <span class="game-key">W</span>
+            </div>
+            <div class="key-row">
+              <span class="game-key">A</span>
+              <span class="game-key">S</span>
+              <span class="game-key">D</span>
+            </div>
+          </div>
+          <div class="arrow-key-pad">
+            <div class="key-row key-row-center">
+              <span class="game-key">↑</span>
+            </div>
+            <div class="key-row">
+              <span class="game-key">←</span>
+              <span class="game-key">↓</span>
+              <span class="game-key">→</span>
+            </div>
+          </div>
+        </div>
+        <p>用 WASD 或方向鍵移動水獺。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual single-key-wrap">
+          <span class="game-key big-key">E</span>
+        </div>
+        <p>靠近石頭時按 E 撿起石頭。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual single-key-wrap">
+          <span class="game-key space-key">SPACE</span>
+        </div>
+        <p>靠近木頭按空白鍵撿起，回小屋再按空白鍵放下。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual mouse-wrap">
+          <div class="mouse-icon">
+            <span class="mouse-left"></span>
+          </div>
+        </div>
+        <p>按住滑鼠左鍵瞄準，放開後丟石頭攻擊狐狸。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual goal-visual">
+          <img src="assets/otter.png" alt="水獺">
+          <span class="goal-arrow">→</span>
+          <img src="assets/wood.png" alt="木頭">
+          <span class="goal-arrow">→</span>
+          <img class="cabin-icon" src="assets/cabin.png" alt="小屋">
+        </div>
+        <p>目標是在時間內把木頭搬回家，分數越高越好。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual object-visual tornado-card-icon">
+          <img src="assets/tornado.png" alt="颱風">
+        </div>
+        <p>颱風會守木頭，也會追玩家；被碰到木頭會掉落。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual object-visual">
+          <img src="assets/fox.png" alt="狐狸">
+        </div>
+        <p>狐狸會偷放在家裡的木頭，牠回窩成功就會扣分。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual object-visual rock-card-icon">
+          <img src="assets/rock.png" alt="石頭">
+        </div>
+        <p>石頭可以阻止狐狸，但不能跑去狐狸家侵門踏戶喔！</p>
+      </article>
+    </div>
+
+    <button id="tutorialContinueButton" class="tutorial-start-button">我懂了，開始填名字</button>
+  </div>
 
   <div id="nameScreen" class="name-screen hidden">
     <h2>輸入玩家名稱</h2>
@@ -58,3 +149,6 @@
   <script src="game.js"></script>
 </body>
 </html>
+
+
+
