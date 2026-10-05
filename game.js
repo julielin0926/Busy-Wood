@@ -13,6 +13,9 @@ const confirmNameButton = document.getElementById("confirmNameButton");
 const nameHint = document.getElementById("nameHint");
 const restartButton = document.getElementById("restartButton");
 const rankingList = document.getElementById("rankingList");
+const gameAlert = document.getElementById("gameAlert");
+const gameAlertText = document.getElementById("gameAlertText");
+const closeAlertButton = document.getElementById("closeAlertButton");
 
 const keys = {};
 const rankingStorageKey = "forestCarryRanking";
@@ -184,6 +187,11 @@ function resetGame() {
   draw();
 }
 
+function showGameAlert(text) {
+  gameAlertText.textContent = text;
+  gameAlert.classList.remove("hidden");
+}
+
 function startGame() {
   const playerName = playerNameInput.value.trim();
 
@@ -283,21 +291,18 @@ function updateThrownRock(deltaTime) {
   thrownRock.x += thrownRock.vx * deltaTime;
   thrownRock.y += thrownRock.vy * deltaTime;
 
+  if (isFoxInDen() && distance(thrownRock, fox) < fox.size) {
+    thrownRock.active = false;
+    startRockRespawn();
+    showGameAlert("不能侵門踏戶，打給動保喔!!!!");
+    return;
+  }
+
   if (distance(thrownRock, fox) < fox.size) {
     thrownRock.active = false;
     hitFoxWithRock();
     startRockRespawn();
     return;
-  }
-
-  if (
-    thrownRock.x < 0 ||
-    thrownRock.x > canvas.width ||
-    thrownRock.y < 0 ||
-    thrownRock.y > canvas.height
-  ) {
-    thrownRock.active = false;
-    startRockRespawn();
   }
 }
 
@@ -314,6 +319,10 @@ function hitFoxWithRock() {
   }
 
   messageText.textContent = "打中狐狸了！狐狸暫時變慢了！";
+}
+
+function isFoxInDen() {
+  return distance(fox, foxDen) < foxDen.radius + fox.size;
 }
 
 function updateFoxDenWarning(deltaTime) {
@@ -335,7 +344,7 @@ function updateFoxDenWarning(deltaTime) {
     pushPlayerAwayFromFoxDen();
 
     if (game.foxDenWarningCooldown === 0) {
-      alert("不可以去侵門踏戶!!!!");
+      showGameAlert("不能侵門踏戶，打給動保喔!!!!");
       game.foxDenWarningCooldown = 2;
     }
   }
@@ -1258,6 +1267,10 @@ playerNameInput.addEventListener("keydown", function (event) {
 });
 
 restartButton.addEventListener("click", startGame);
+
+closeAlertButton.addEventListener("click", function () {
+  gameAlert.classList.add("hidden");
+});
 
 resetGame();
 renderRanking();

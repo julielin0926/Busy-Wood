@@ -212,3 +212,55 @@ button:disabled {
   padding: 6px 0;
   font-size: 17px;
 }
+
+.game-alert {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 43, 25, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.game-alert.hidden {
+  display: none;
+}
+
+.game-alert-box {
+  width: 380px;
+  padding: 28px 32px;
+  text-align: center;
+  background: rgba(255, 248, 220, 0.98);
+  border: 5px solid #8b5a2b;
+  border-radius: 28px;
+  box-shadow: 0 12px 0 rgba(92, 58, 30, 0.25);
+  color: #5c3a1e;
+}
+
+.game-alert-box h2 {
+  margin: 0 0 14px;
+  font-size: 28px;
+}
+
+.game-alert-box p {
+  margin: 0 0 22px;
+  font-size: 20px;
+  line-height: 1.6;
+  font-weight: bold;
+}
+
+.game-alert-box button {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 999px;
+  background: #2f7d46;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.game-alert-box button:hover {
+  background: #256b3a;
+}
