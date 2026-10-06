@@ -817,6 +817,16 @@ function getTouchScreenPosition(touch) {
   };
 }
 
+function isTouchOnPickupObject(x, y) {
+  const tappedWood = woods.some((wood) => {
+    return wood.visible && distance({ x, y }, wood) < 95;
+  });
+
+  const tappedRock = rock.visible && distance({ x, y }, rock) < 95;
+
+  return tappedWood || tappedRock;
+}
+
 function handleMobileTap(x, y) {
   if (!game.running) return;
 
@@ -1756,6 +1766,18 @@ canvas.addEventListener("touchstart", (event) => {
 
   const touch = event.changedTouches[0];
   const point = getTouchPosition(touch);
+
+  if (isTouchOnPickupObject(point.x, point.y)) {
+  if (!mobileTap.active) {
+    mobileTap.active = true;
+    mobileTap.touchId = touch.identifier;
+    mobileTap.x = point.x;
+    mobileTap.y = point.y;
+  }
+
+  event.preventDefault();
+  return;
+  }
 
   if (isTouchOnPlayer(point.x, point.y) && !mobileMove.active) {
     startMobileMove(touch);
