@@ -10,6 +10,7 @@ const nameScreen = document.getElementById("nameScreen");
 const tutorialScreen = document.getElementById("tutorialScreen");
 const gameShell = document.getElementById("gameShell");
 const showNameButton = document.getElementById("showNameButton");
+const exitGameButton = document.getElementById("exitGameButton");
 const confirmNameButton = document.getElementById("confirmNameButton");
 const tutorialContinueButton = document.getElementById("tutorialContinueButton");
 const nameHint = document.getElementById("nameHint");
@@ -22,6 +23,12 @@ const bgm = document.getElementById("bgm");
 const joystickBase = document.getElementById("joystickBase");
 const joystickKnob = document.getElementById("joystickKnob");
 const throwButton = document.getElementById("throwButton");
+const mobileResultScreen = document.getElementById("mobileResultScreen");
+const finalScoreText = document.getElementById("finalScoreText");
+const mobileRankingList = document.getElementById("mobileRankingList");
+const mobileRestartButton = document.getElementById("mobileRestartButton");
+const mobileHomeButton = document.getElementById("mobileHomeButton");
+const mobileCloseGameButton = document.getElementById("mobileCloseGameButton");
 
 const keys = {};
 
@@ -41,6 +48,8 @@ const mobileMove = {
 
 const mobileThrow = {
   active: false,
+  power: 0,
+  minPower: 18,
 };
 
 const rankingStorageKey = "forestCarryRanking";
@@ -240,6 +249,38 @@ function showGameAlert(text) {
   gameAlert.classList.remove("hidden");
 }
 
+
+function goHome() {
+  game.running = false;
+  game.lastTime = 0;
+  stopMobileMove();
+  mobileThrow.active = false;
+  mobileThrow.power = 0;
+  aim.active = false;
+  updateThrowButtonState();
+  document.body.classList.remove("mobile-playing");
+
+  gameShell.classList.add("hidden");
+  tutorialScreen.classList.add("hidden");
+  nameScreen.classList.add("hidden");
+  if (mobileResultScreen) {
+    mobileResultScreen.classList.add("hidden");
+  }
+  startScreen.classList.remove("hidden");
+  nameHint.textContent = "";
+  messageText.textContent = "點木頭搬回小屋，別讓狐狸偷走！";
+
+  resetGame();
+  if (rankingList) {
+    renderRanking();
+  }
+}
+
+function exitGame() {
+  goHome();
+  window.close();
+}
+
 function startGame() {
   const playerName = playerNameInput.value.trim();
 
@@ -267,9 +308,16 @@ function endGame() {
   const playerName = playerNameInput.value.trim();
 
   game.running = false;
+  stopMobileMove();
+  mobileThrow.active = false;
+  mobileThrow.power = 0;
+  aim.active = false;
+  updateThrowButtonState();
   document.body.classList.remove("mobile-playing");
+  gameShell.classList.add("hidden");
+
   if (restartButton) {
-  restartButton.disabled = false;
+    restartButton.disabled = false;
   }
 
   saveScore(playerName, game.score);
@@ -277,7 +325,8 @@ function endGame() {
   if (rankingList) {
     renderRanking();
   }
-  messageText.textContent = `遊戲結束！${playerName} 本局分數：${game.score}。`;
+
+  showMobileResult(playerName, game.score);
 }
 
 function gameLoop(timestamp) {
@@ -966,6 +1015,13 @@ function updateThrowButton() {
   }
 }
 
+function updateThrowButtonState() {
+  if (!throwButton) return;
+
+  throwButton.classList.toggle("aiming", mobileThrow.active);
+  throwButton.classList.toggle("ready", mobileThrow.active && mobileThrow.power >= mobileThrow.minPower);
+}
+
 function loadRanking() {
   const savedRanking = localStorage.getItem(rankingStorageKey);
 
@@ -1016,6 +1072,40 @@ function renderRanking() {
   });
 }
 
+function renderMobileRanking() {
+  if (!mobileRankingList) return;
+
+  const ranking = loadRanking();
+  mobileRankingList.innerHTML = "";
+
+  if (ranking.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.textContent = "目前還沒有紀錄。";
+    mobileRankingList.appendChild(emptyItem);
+    return;
+  }
+
+  ranking.forEach((record) => {
+    const item = document.createElement("li");
+    item.textContent = `${record.name}：${record.score} 分`;
+    mobileRankingList.appendChild(item);
+  });
+}
+
+function showMobileResult(playerName, score) {
+  if (!mobileResultScreen) {
+    messageText.textContent = `遊戲結束！${playerName} 本局分數：${score}。`;
+    return;
+  }
+
+  if (finalScoreText) {
+    finalScoreText.textContent = `${playerName} 本局分數：${score}`;
+  }
+
+  renderMobileRanking();
+  mobileResultScreen.classList.remove("hidden");
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1031,7 +1121,6 @@ function draw() {
   }
   });
 
-  drawFoxDen();
   drawFoxDen();
 
   if (rock.visible) {
@@ -1388,6 +1477,31 @@ function getTouchPosition(touch) {
   };
 }
 
+function getThrowDirectionFromButton(touch) {
+  const rect = throwButton.getBoundingClientRect();
+
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  const dx = touch.clientX - centerX;
+  const dy = touch.clientY - centerY;
+  const length = Math.hypot(dx, dy);
+
+  mobileThrow.power = length;
+
+  if (length < mobileThrow.minPower) {
+    return {
+      x: player.x,
+      y: player.y,
+    };
+  }
+
+  return {
+    x: player.x + (dx / length) * aim.maxRange,
+    y: player.y + (dy / length) * aim.maxRange,
+  };
+}
+
 function getLimitedAimTarget() {
   const dx = aim.mouseX - player.x;
   const dy = aim.mouseY - player.y;
@@ -1489,6 +1603,10 @@ window.addEventListener("keyup", (event) => {
   keys[event.key] = false;
 });
 
+if (exitGameButton) {
+  exitGameButton.addEventListener("click", exitGame);
+}
+
 showNameButton.addEventListener("click", function () {
   startScreen.classList.add("hidden");
   tutorialScreen.classList.remove("hidden");
@@ -1510,6 +1628,23 @@ playerNameInput.addEventListener("keydown", function (event) {
 
 if (restartButton) {
   restartButton.addEventListener("click", startGame);
+}
+
+if (mobileRestartButton) {
+  mobileRestartButton.addEventListener("click", function () {
+    if (mobileResultScreen) {
+      mobileResultScreen.classList.add("hidden");
+    }
+    startGame();
+  });
+}
+
+if (mobileHomeButton) {
+  mobileHomeButton.addEventListener("click", goHome);
+}
+
+if (mobileCloseGameButton) {
+  mobileCloseGameButton.addEventListener("click", goHome);
 }
 
 closeAlertButton.addEventListener("click", function () {
@@ -1616,12 +1751,14 @@ if (throwButton) {
 
     mobileThrow.active = true;
     aim.active = true;
+    mobileThrow.power = 0;
+    updateThrowButtonState();
 
     const touch = event.touches[0];
-    const point = getTouchPosition(touch);
+    const target = getThrowDirectionFromButton(touch);
 
-    aim.mouseX = point.x;
-    aim.mouseY = point.y;
+    aim.mouseX = target.x;
+    aim.mouseY = target.y;
 
     event.preventDefault();
   });
@@ -1630,29 +1767,37 @@ if (throwButton) {
     if (!mobileThrow.active) return;
 
     const touch = event.touches[0];
-    const point = getTouchPosition(touch);
+    const target = getThrowDirectionFromButton(touch);
 
-    aim.mouseX = point.x;
-    aim.mouseY = point.y;
-
+    aim.mouseX = target.x;
+    aim.mouseY = target.y;
+    updateThrowButtonState();
     event.preventDefault();
   });
 
   throwButton.addEventListener("touchend", (event) => {
     if (!mobileThrow.active) return;
 
-    const target = getLimitedAimTarget();
-    throwRock(target.x, target.y);
+    if (mobileThrow.power >= mobileThrow.minPower) {
+      const target = getLimitedAimTarget();
+      throwRock(target.x, target.y);
+    } else {
+      messageText.textContent = "拖曳方向後再放開，才會丟出石頭。";
+    }
 
     mobileThrow.active = false;
+    mobileThrow.power = 0;
     aim.active = false;
+    updateThrowButtonState();
 
     event.preventDefault();
   });
 
   throwButton.addEventListener("touchcancel", (event) => {
     mobileThrow.active = false;
+    mobileThrow.power = 0;
     aim.active = false;
+    updateThrowButtonState();
 
     event.preventDefault();
   });

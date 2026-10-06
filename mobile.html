@@ -10,7 +10,10 @@
   <div id="startScreen" class="start-screen">
     <h1>森林搬搬忙</h1>
     <p>幫小動物搬木頭回小木屋，避開龍捲風，在時間內取得高分！</p>
-    <button id="showNameButton">開始遊戲</button>
+    <div class="start-button-row">
+      <button id="showNameButton">開始遊戲</button>
+      <button id="exitGameButton" type="button">離開遊戲</button>
+    </div>
   </div>
   <div id="tutorialScreen" class="tutorial-screen hidden">
     <div class="tutorial-header">
@@ -18,54 +21,23 @@
       <p>先看懂玩法，再開始森林搬搬忙！</p>
     </div>
 
-    <div class="tutorial-grid">
+    <div class="tutorial-grid mobile-tutorial-grid">
       <article class="tutorial-card">
-        <div class="tutorial-visual move-keys">
-          <div class="wasd-keys">
-            <div class="key-row key-row-center">
-              <span class="game-key">W</span>
-            </div>
-            <div class="key-row">
-              <span class="game-key">A</span>
-              <span class="game-key">S</span>
-              <span class="game-key">D</span>
-            </div>
-          </div>
-          <div class="arrow-key-pad">
-            <div class="key-row key-row-center">
-              <span class="game-key">↑</span>
-            </div>
-            <div class="key-row">
-              <span class="game-key">←</span>
-              <span class="game-key">↓</span>
-              <span class="game-key">→</span>
-            </div>
+        <div class="tutorial-visual joystick-demo">
+          <div class="demo-joystick-base">
+            <div class="demo-joystick-knob"></div>
           </div>
         </div>
-        <p>用 WASD 或方向鍵移動水獺。</p>
+        <p>按住遊戲畫面會出現搖桿，拖曳方向控制水獺移動。</p>
       </article>
 
       <article class="tutorial-card">
-        <div class="tutorial-visual single-key-wrap">
-          <span class="game-key big-key">E</span>
+        <div class="tutorial-visual goal-visual">
+          <img src="assets/wood.png" alt="木頭">
+          <span class="goal-arrow">＋</span>
+          <img src="assets/rock.png" alt="石頭">
         </div>
-        <p>靠近石頭時按 E 撿起石頭。</p>
-      </article>
-
-      <article class="tutorial-card">
-        <div class="tutorial-visual single-key-wrap">
-          <span class="game-key space-key">SPACE</span>
-        </div>
-        <p>靠近木頭按空白鍵撿起，回小屋再按空白鍵放下。</p>
-      </article>
-
-      <article class="tutorial-card">
-        <div class="tutorial-visual mouse-wrap">
-          <div class="mouse-icon">
-            <span class="mouse-left"></span>
-          </div>
-        </div>
-        <p>按住滑鼠左鍵瞄準，放開後丟石頭攻擊狐狸。</p>
+        <p>靠近木頭或石頭後，直接點它就可以撿起來。</p>
       </article>
 
       <article class="tutorial-card">
@@ -76,14 +48,22 @@
           <span class="goal-arrow">→</span>
           <img class="cabin-icon" src="assets/cabin.png" alt="小屋">
         </div>
-        <p>目標是在時間內把木頭搬回家，分數越高越好。</p>
+        <p>拿到木頭後靠近小屋，點小屋附近就能放下得分。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual throw-demo">
+          <button class="demo-throw-button" type="button">🪨</button>
+          <span class="goal-arrow">↗</span>
+        </div>
+        <p>撿到石頭後，右下角會出現投石按鈕；按住拖曳瞄準，放開發射。</p>
       </article>
 
       <article class="tutorial-card">
         <div class="tutorial-visual object-visual tornado-card-icon">
           <img src="assets/tornado.png" alt="颱風">
         </div>
-        <p>颱風會守木頭，也會追玩家；被碰到木頭會掉落。</p>
+        <p>颱風會巡邏木頭，也會追玩家；被碰到時木頭會掉落。</p>
       </article>
 
       <article class="tutorial-card">
@@ -97,7 +77,14 @@
         <div class="tutorial-visual object-visual rock-card-icon">
           <img src="assets/rock.png" alt="石頭">
         </div>
-        <p>石頭可以阻止狐狸，但不能跑去狐狸家侵門踏戶喔！</p>
+        <p>石頭可以打退狐狸；拖曳距離夠時，按鈕會變紅表示可以發射。</p>
+      </article>
+
+      <article class="tutorial-card">
+        <div class="tutorial-visual object-visual">
+          <img src="assets/fox-den.png" alt="狐狸窩">
+        </div>
+        <p>拿石頭時不能跑去狐狸家侵門踏戶，不然會被彈開警告喔！</p>
       </article>
     </div>
 
@@ -121,6 +108,7 @@
         <span>時間 <strong id="timeText">60</strong></span>
         <span>分數 <strong id="scoreText">0</strong></span>
       </div>
+      <button id="mobileCloseGameButton" class="mobile-close-game-button" type="button" aria-label="回首頁">×</button>
     </section>
 
     <canvas id="gameCanvas" width="1280" height="720"></canvas>
@@ -145,10 +133,24 @@
 
   </main>
 
+  <section id="mobileResultScreen" class="mobile-result-screen hidden">
+    <div class="mobile-result-card">
+      <h2>遊戲結束！</h2>
+      <p id="finalScoreText">本局分數：0</p>
+      <div class="mobile-ranking-panel">
+        <h3>排行榜</h3>
+        <ol id="mobileRankingList"></ol>
+      </div>
+      <button id="mobileRestartButton" type="button">重新開始</button>
+      <button id="mobileHomeButton" type="button">回首頁</button>
+    </div>
+  </section>
+
   <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
   <script src="mobile-game.js"></script>
 </body>
 </html>
+
 
 
 

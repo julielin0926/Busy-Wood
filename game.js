@@ -14,6 +14,7 @@ const confirmNameButton = document.getElementById("confirmNameButton");
 const tutorialContinueButton = document.getElementById("tutorialContinueButton");
 const nameHint = document.getElementById("nameHint");
 const restartButton = document.getElementById("restartButton");
+const homeButton = document.getElementById("homeButton");
 const rankingList = document.getElementById("rankingList");
 const gameAlert = document.getElementById("gameAlert");
 const gameAlertText = document.getElementById("gameAlertText");
@@ -209,6 +210,30 @@ function playBackgroundMusic() {
 function showGameAlert(text) {
   gameAlertText.textContent = text;
   gameAlert.classList.remove("hidden");
+}
+
+
+function goHome() {
+  game.running = false;
+  keys.ArrowLeft = false;
+  keys.ArrowRight = false;
+  keys.ArrowUp = false;
+  keys.ArrowDown = false;
+  keys.a = false;
+  keys.d = false;
+  keys.w = false;
+  keys.s = false;
+  aim.active = false;
+
+  gameShell.classList.add("hidden");
+  tutorialScreen.classList.add("hidden");
+  nameScreen.classList.add("hidden");
+  startScreen.classList.remove("hidden");
+  nameHint.textContent = "";
+  messageText.textContent = "用 WASD 或方向鍵移動，靠近木頭按 Space 撿起，再回小屋按 Space 放下。";
+
+  resetGame();
+  renderRanking();
 }
 
 function startGame() {
@@ -1308,6 +1333,10 @@ playerNameInput.addEventListener("keydown", function (event) {
 });
 
 restartButton.addEventListener("click", startGame);
+
+if (homeButton) {
+  homeButton.addEventListener("click", goHome);
+}
 
 closeAlertButton.addEventListener("click", function () {
   gameAlert.classList.add("hidden");

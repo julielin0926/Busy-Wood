@@ -555,3 +555,12 @@ button:disabled {
   object-fit: contain;
 }
 
+
+
+#homeButton {
+  background: #8b5a2b;
+}
+
+#homeButton:hover {
+  background: #70451f;
+}
