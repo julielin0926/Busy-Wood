@@ -204,6 +204,14 @@ function resetGame() {
   game.stunTime = 0;
   game.invincibleTime = 0;
   game.foxDenWarningCooldown = 0;
+  stopMobileMove();
+  mobileThrow.active = false;
+  mobileThrow.touchId = null;
+  mobileThrow.power = 0;
+  mobileTap.active = false;
+  mobileTap.touchId = null;
+  aim.active = false;
+  updateThrowButtonState();
 
   tornadoes[0].x = tornadoes[0].startX;
   tornadoes[0].y = tornadoes[0].startY;
@@ -298,6 +306,11 @@ function startGame() {
 
   startScreen.classList.add("hidden");
   nameScreen.classList.add("hidden");
+
+  if (mobileResultScreen) {
+    mobileResultScreen.classList.add("hidden");
+  }
+
   gameShell.classList.remove("hidden");
 
   resetGame();
@@ -785,34 +798,6 @@ function stopMobileMove() {
   mobileMove.active = false;
   mobileMove.touchId = null;
   mobileMove.moved = false;
-}
-
-function updateJoystickKnob(touchX, touchY) {
-  const dx = touchX - mobileMove.baseX;
-  const dy = touchY - mobileMove.baseY;
-  const distance = Math.hypot(dx, dy);
-
-  if (distance > 10) {
-    mobileMove.moved = true;
-  }
-
-  const limitedDistance = Math.min(distance, mobileMove.maxDistance);
-  const angle = Math.atan2(dy, dx);
-
-  const knobX = Math.cos(angle) * limitedDistance;
-  const knobY = Math.sin(angle) * limitedDistance;
-
-  joystickKnob.style.left = `${48 + knobX}px`;
-  joystickKnob.style.top = `${48 + knobY}px`;
-
-  if (distance < 8) {
-    mobileMove.dx = 0;
-    mobileMove.dy = 0;
-    return;
-  }
-
-  mobileMove.dx = dx / distance;
-  mobileMove.dy = dy / distance;
 }
 
 function findTouchById(touchList, touchId) {
