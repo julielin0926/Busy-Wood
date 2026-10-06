@@ -564,16 +564,26 @@ button:disabled {
     margin: 0;
     padding: 0;
     overflow: auto;
-    background: #000;
+    background: #f8efd2;;
   }
 
   .start-screen,
   .name-screen,
   .tutorial-screen {
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-    border: none;
+    width: 100%;
+    min-height: 100vh;
+    height: auto;
+    overflow-y: auto;
+    padding: 18px 20px 32px;
+  }
+
+  .tutorial-grid {
+    height: auto;
+    overflow: visible;
+  }
+
+  .tutorial-card {
+    min-height: 170px;
   }
 
   .game-shell {
@@ -642,7 +652,7 @@ body.mobile-playing {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #000;
+  background: #f8efd2;
 }
 
 body.mobile-playing .game-shell {
@@ -652,7 +662,7 @@ body.mobile-playing .game-shell {
   height: 100vh;
   padding: 0;
   overflow: hidden;
-  background: #000;
+  background: #f8efd2;;
 }
 
 body.mobile-playing canvas {
@@ -727,4 +737,24 @@ body.mobile-playing .score-board span {
   background: #2f7d46;
   border: 3px solid #fff4d7;
   transform: translate(-50%, -50%);
+}
+
+.throw-button {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 4px solid #8b5a2b;
+  background: radial-gradient(circle at 35% 30%, #fff4c9 0%, #e7c27c 45%, #b77b3c 100%);
+  box-shadow: 0 8px 0 #5f3b1d, 0 12px 18px rgba(0, 0, 0, 0.28);
+  font-size: 34px;
+  z-index: 30;
+  touch-action: none;
+}
+
+.throw-button:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 #5f3b1d, 0 8px 14px rgba(0, 0, 0, 0.24);
 }

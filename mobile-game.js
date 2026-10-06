@@ -21,6 +21,7 @@ const closeAlertButton = document.getElementById("closeAlertButton");
 const bgm = document.getElementById("bgm");
 const joystickBase = document.getElementById("joystickBase");
 const joystickKnob = document.getElementById("joystickKnob");
+const throwButton = document.getElementById("throwButton");
 
 const keys = {};
 
@@ -36,6 +37,10 @@ const mobileMove = {
   startCanvasX: 0,
   startCanvasY: 0,
   moved: false,
+};
+
+const mobileThrow = {
+  active: false,
 };
 
 const rankingStorageKey = "forestCarryRanking";
@@ -68,6 +73,13 @@ const player = {
   y: 300,
   size: 58,
   speed: 240,
+};
+
+const spawnArea = {
+  minX: 110,
+  maxX: 980,
+  minY: 120,
+  maxY: 610,
 };
 
 const cabin = {
@@ -204,8 +216,8 @@ function resetGame() {
   rock.visible = true;
   rock.carried = false;
   rock.respawnTimer = 0;
-  rock.x = randomBetween(80, 640);
-  rock.y = randomBetween(80, 500);
+  rock.x = randomBetween(spawnArea.minX, spawnArea.maxX);
+  rock.y = randomBetween(spawnArea.minY, spawnArea.maxY);
 
   spawnAllWoods();
   updateHud();
@@ -326,8 +338,8 @@ function updateRockRespawn(deltaTime) {
 
   if (rock.respawnTimer === 0) {
     rock.visible = true;
-    rock.x = randomBetween(80, 640);
-    rock.y = randomBetween(80, 500);
+    rock.x = randomBetween(spawnArea.minX, spawnArea.maxX);
+    rock.y = randomBetween(spawnArea.minY, spawnArea.maxY);
     messageText.textContent = "新的石頭出現了！";
   }
 }
@@ -769,11 +781,11 @@ function handleMobileTap(x, y) {
   }
 
   const tappedWoodIndex = woods.findIndex((wood) => {
-    return wood.visible && distance({ x, y }, wood) < 52;
+  return wood.visible && distance({ x, y }, wood) < 85;
   });
 
   if (!game.carryingWood && tappedWoodIndex !== -1) {
-    if (distance(player, woods[tappedWoodIndex]) > 70) {
+    if (distance(player, woods[tappedWoodIndex]) > 120) {
       messageText.textContent = "離木頭太遠了，靠近一點再點木頭。";
       return;
     }
@@ -785,8 +797,8 @@ function handleMobileTap(x, y) {
     return;
   }
 
-  if (rock.visible && distance({ x, y }, rock) < 58) {
-    if (distance(player, rock) > 75) {
+  if (rock.visible && distance({ x, y }, rock) < 90) {
+    if (distance(player, rock) > 120) {
       messageText.textContent = "離石頭太遠了，靠近一點再點石頭。";
       return;
     }
@@ -815,7 +827,8 @@ function pickUpRock() {
 
   game.carryingRock = true;
   rock.visible = false;
-  messageText.textContent = "撿起石頭了！之後可以用滑鼠瞄準丟向狐狸。";
+  messageText.textContent = "撿起石頭了！按住右下角石頭按鈕瞄準狐狸。";
+  updateThrowButton();
 }
 
 function throwRock(targetX, targetY) {
@@ -836,6 +849,7 @@ function throwRock(targetX, targetY) {
   thrownRock.active = true;
 
   game.carryingRock = false;
+  updateThrowButton();
   messageText.textContent = "石頭丟出去了！";
 }
 
@@ -904,8 +918,8 @@ function spawnAllWoods() {
 
 function spawnWood(wood) {
   wood.visible = true;
-  wood.x = randomBetween(60, 640);
-  wood.y = randomBetween(60, 500);
+  wood.x = randomBetween(spawnArea.minX, spawnArea.maxX);
+  wood.y = randomBetween(spawnArea.minY, spawnArea.maxY);
 }
 
 function startRockRespawn() {
@@ -915,26 +929,41 @@ function startRockRespawn() {
 }
 
 function isPointInCabin(x, y) {
+  const padding = 80;
+
   return (
-    x > cabin.x &&
-    x < cabin.x + cabin.width &&
-    y > cabin.y &&
-    y < cabin.y + cabin.height
+    x > cabin.x - padding &&
+    x < cabin.x + cabin.width + padding &&
+    y > cabin.y - padding &&
+    y < cabin.y + cabin.height + padding
   );
 }
 
 function isPlayerInCabin() {
+  const padding = 100;
+
   return (
-    player.x > cabin.x &&
-    player.x < cabin.x + cabin.width &&
-    player.y > cabin.y &&
-    player.y < cabin.y + cabin.height
+    player.x > cabin.x - padding &&
+    player.x < cabin.x + cabin.width + padding &&
+    player.y > cabin.y - padding &&
+    player.y < cabin.y + cabin.height + padding
   );
 }
 
 function updateHud() {
   timeText.textContent = Math.ceil(game.timeLeft);
   scoreText.textContent = game.score;
+  updateThrowButton();
+}
+
+function updateThrowButton() {
+  if (!throwButton) return;
+
+  if (game.carryingRock && game.running) {
+    throwButton.classList.remove("hidden");
+  } else {
+    throwButton.classList.add("hidden");
+  }
 }
 
 function loadRanking() {
@@ -1553,6 +1582,8 @@ canvas.addEventListener("touchend", (event) => {
 
 canvas.addEventListener("touchcancel", (event) => {
   stopMobileMove();
+  mobileThrow.active = false;
+  aim.active = false;
   event.preventDefault();
 });
 
@@ -1563,6 +1594,7 @@ canvas.addEventListener("touchstart", (event) => {
   const touch = event.touches[0];
 
   startMobileMove(touch);
+
   event.preventDefault();
 });
 
@@ -1573,5 +1605,55 @@ canvas.addEventListener("touchmove", (event) => {
   const touch = event.touches[0];
 
   updateMobileMove(touch);
+
   event.preventDefault();
 });
+
+if (throwButton) {
+  throwButton.addEventListener("touchstart", (event) => {
+    if (!game.running) return;
+    if (!game.carryingRock) return;
+
+    mobileThrow.active = true;
+    aim.active = true;
+
+    const touch = event.touches[0];
+    const point = getTouchPosition(touch);
+
+    aim.mouseX = point.x;
+    aim.mouseY = point.y;
+
+    event.preventDefault();
+  });
+
+  throwButton.addEventListener("touchmove", (event) => {
+    if (!mobileThrow.active) return;
+
+    const touch = event.touches[0];
+    const point = getTouchPosition(touch);
+
+    aim.mouseX = point.x;
+    aim.mouseY = point.y;
+
+    event.preventDefault();
+  });
+
+  throwButton.addEventListener("touchend", (event) => {
+    if (!mobileThrow.active) return;
+
+    const target = getLimitedAimTarget();
+    throwRock(target.x, target.y);
+
+    mobileThrow.active = false;
+    aim.active = false;
+
+    event.preventDefault();
+  });
+
+  throwButton.addEventListener("touchcancel", (event) => {
+    mobileThrow.active = false;
+    aim.active = false;
+
+    event.preventDefault();
+  });
+}
