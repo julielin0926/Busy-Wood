@@ -18,6 +18,7 @@ const rankingList = document.getElementById("rankingList");
 const gameAlert = document.getElementById("gameAlert");
 const gameAlertText = document.getElementById("gameAlertText");
 const closeAlertButton = document.getElementById("closeAlertButton");
+const bgm = document.getElementById("bgm");
 
 const keys = {};
 const rankingStorageKey = "forestCarryRanking";
@@ -194,6 +195,17 @@ function resetGame() {
   draw();
 }
 
+function playBackgroundMusic() {
+  if (!bgm) return;
+
+  bgm.volume = 0.35;
+
+  if (bgm.paused) {
+    bgm.play().catch(() => {
+      messageText.textContent = "點一下畫面後，背景音樂就會開始播放。";
+    });
+  }
+}
 function showGameAlert(text) {
   gameAlertText.textContent = text;
   gameAlert.classList.remove("hidden");
@@ -213,6 +225,7 @@ function startGame() {
 
   resetGame();
   game.running = true;
+  playBackgroundMusic();
   restartButton.disabled = false;
   messageText.textContent = `${playerName}，開始搬木頭吧！`;
   requestAnimationFrame(gameLoop);
@@ -1331,6 +1344,7 @@ canvas.addEventListener("mouseup", (event) => {
 
   aim.active = false;
 });
+
 
 
 
