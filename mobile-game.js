@@ -822,7 +822,7 @@ function isTouchOnPickupObject(x, y) {
     return wood.visible && distance({ x, y }, wood) < 95;
   });
 
-  const tappedRock = rock.visible && distance({ x, y }, rock) < 95;
+  const tappedRock = rock.visible && distance({ x, y }, rock) < 110;
 
   return tappedWood || tappedRock;
 }
@@ -891,10 +891,10 @@ function pickUpRock() {
     return;
   }
 
-  if (distance(player, rock) > 55) {
-    messageText.textContent = "離石頭太遠了，靠近一點再按 E。";
-    return;
-  }
+  if (distance(player, rock) > 120) {
+  messageText.textContent = "離石頭太遠了，靠近一點再點石頭。";
+  return;
+}
 
   game.carryingRock = true;
   rock.visible = false;
