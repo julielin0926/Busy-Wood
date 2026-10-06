@@ -49,6 +49,13 @@ const mobileThrow = {
   minPower: 18,
 };
 
+const mobileTap = {
+  active: false,
+  touchId: null,
+  x: 0,
+  y: 0,
+};
+
 const rankingStorageKey = "forestCarryRanking";
 
 const assets = {
@@ -252,8 +259,10 @@ function goHome() {
   game.lastTime = 0;
   stopMobileMove();
   mobileThrow.active = false;
-  mobileThrow.power = 0;
   mobileThrow.touchId = null;
+  mobileThrow.power = 0;
+  mobileTap.active = false;
+  mobileTap.touchId = null;
   aim.active = false;
   updateThrowButtonState();
   document.body.classList.remove("mobile-playing");
@@ -310,6 +319,8 @@ function endGame() {
   mobileThrow.active = false;
   mobileThrow.touchId = null;
   mobileThrow.power = 0;
+  mobileTap.active = false;
+  mobileTap.touchId = null;
   aim.active = false;
   updateThrowButtonState();
   document.body.classList.remove("mobile-playing");
@@ -1720,19 +1731,21 @@ canvas.addEventListener("touchend", (event) => {
 
   const endedMoveTouch = findTouchById(event.changedTouches, mobileMove.touchId);
 
-  if (!endedMoveTouch) return;
-
-  const isTap = mobileMove.active && !mobileMove.moved;
-  const tapX = mobileMove.startCanvasX;
-  const tapY = mobileMove.startCanvasY;
-
-  stopMobileMove();
-
-  if (isTap) {
-    handleMobileTap(tapX, tapY);
+  if (endedMoveTouch) {
+    stopMobileMove();
+    event.preventDefault();
+    return;
   }
 
-  event.preventDefault();
+  const endedTapTouch = findTouchById(event.changedTouches, mobileTap.touchId);
+
+  if (endedTapTouch) {
+    handleMobileTap(mobileTap.x, mobileTap.y);
+
+    mobileTap.active = false;
+    mobileTap.touchId = null;
+    event.preventDefault();
+  }
 });
 
 canvas.addEventListener("touchcancel", (event) => {
@@ -1742,22 +1755,35 @@ canvas.addEventListener("touchcancel", (event) => {
     stopMobileMove();
   }
 
+  const canceledTapTouch = findTouchById(event.changedTouches, mobileTap.touchId);
+
+  if (canceledTapTouch) {
+    mobileTap.active = false;
+    mobileTap.touchId = null;
+  }
+
   event.preventDefault();
 });
 
 canvas.addEventListener("touchstart", (event) => {
   if (!game.running) return;
   if (event.changedTouches.length === 0) return;
-  if (mobileMove.active) return;
 
   const touch = event.changedTouches[0];
   const point = getTouchPosition(touch);
 
-  if (!isTouchOnPlayer(point.x, point.y)) {
+  if (isTouchOnPlayer(point.x, point.y) && !mobileMove.active) {
+    startMobileMove(touch);
+    event.preventDefault();
     return;
   }
 
-  startMobileMove(touch);
+  if (!mobileTap.active) {
+    mobileTap.active = true;
+    mobileTap.touchId = touch.identifier;
+    mobileTap.x = point.x;
+    mobileTap.y = point.y;
+  }
 
   event.preventDefault();
 });
