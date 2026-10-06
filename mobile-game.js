@@ -34,6 +34,7 @@ const keys = {};
 
 const mobileMove = {
   active: false,
+  touchId: null,
   baseX: 0,
   baseY: 0,
   knobX: 0,
@@ -48,6 +49,7 @@ const mobileMove = {
 
 const mobileThrow = {
   active: false,
+  touchId: null,
   power: 0,
   minPower: 18,
 };
@@ -256,6 +258,7 @@ function goHome() {
   stopMobileMove();
   mobileThrow.active = false;
   mobileThrow.power = 0;
+  mobileThrow.touchId = null;
   aim.active = false;
   updateThrowButtonState();
   document.body.classList.remove("mobile-playing");
@@ -310,6 +313,7 @@ function endGame() {
   game.running = false;
   stopMobileMove();
   mobileThrow.active = false;
+  mobileThrow.touchId = null;
   mobileThrow.power = 0;
   aim.active = false;
   updateThrowButtonState();
@@ -738,6 +742,7 @@ function startMobileMove(touch) {
   const canvasPoint = getTouchPosition(touch);
 
   mobileMove.active = true;
+  mobileMove.touchId = touch.identifier;
   mobileMove.baseX = point.x;
   mobileMove.baseY = point.y;
   mobileMove.knobX = point.x;
@@ -764,6 +769,7 @@ function updateMobileMove(touch) {
 
 function stopMobileMove() {
   mobileMove.active = false;
+  mobileMove.touchId = null;
   mobileMove.dx = 0;
   mobileMove.dy = 0;
 
@@ -796,6 +802,16 @@ function updateJoystickKnob(touchX, touchY) {
 
   mobileMove.dx = dx / distance;
   mobileMove.dy = dy / distance;
+}
+
+function findTouchById(touchList, touchId) {
+  for (let i = 0; i < touchList.length; i += 1) {
+    if (touchList[i].identifier === touchId) {
+      return touchList[i];
+    }
+  }
+
+  return null;
 }
 
 function getTouchScreenPosition(touch) {
@@ -1702,6 +1718,10 @@ canvas.addEventListener("mouseup", (event) => {
 canvas.addEventListener("touchend", (event) => {
   if (!game.running) return;
 
+  const endedMoveTouch = findTouchById(event.changedTouches, mobileMove.touchId);
+
+  if (!endedMoveTouch) return;
+
   const isTap = mobileMove.active && !mobileMove.moved;
   const tapX = mobileMove.startCanvasX;
   const tapY = mobileMove.startCanvasY;
@@ -1716,17 +1736,21 @@ canvas.addEventListener("touchend", (event) => {
 });
 
 canvas.addEventListener("touchcancel", (event) => {
-  stopMobileMove();
-  mobileThrow.active = false;
-  aim.active = false;
+  const canceledMoveTouch = findTouchById(event.changedTouches, mobileMove.touchId);
+
+  if (canceledMoveTouch) {
+    stopMobileMove();
+  }
+
   event.preventDefault();
 });
 
 canvas.addEventListener("touchstart", (event) => {
   if (!game.running) return;
-  if (event.touches.length === 0) return;
+  if (event.changedTouches.length === 0) return;
+  if (mobileMove.active) return;
 
-  const touch = event.touches[0];
+  const touch = event.changedTouches[0];
 
   startMobileMove(touch);
 
@@ -1735,9 +1759,11 @@ canvas.addEventListener("touchstart", (event) => {
 
 canvas.addEventListener("touchmove", (event) => {
   if (!game.running) return;
-  if (event.touches.length === 0) return;
+  if (!mobileMove.active) return;
 
-  const touch = event.touches[0];
+  const touch = findTouchById(event.touches, mobileMove.touchId);
+
+  if (!touch) return;
 
   updateMobileMove(touch);
 
@@ -1746,59 +1772,77 @@ canvas.addEventListener("touchmove", (event) => {
 
 if (throwButton) {
   throwButton.addEventListener("touchstart", (event) => {
-    if (!game.running) return;
-    if (!game.carryingRock) return;
+  if (!game.running) return;
+  if (!game.carryingRock) return;
+  if (event.changedTouches.length === 0) return;
+  if (mobileThrow.active) return;
 
-    mobileThrow.active = true;
-    aim.active = true;
-    mobileThrow.power = 0;
-    updateThrowButtonState();
+  const touch = event.changedTouches[0];
 
-    const touch = event.touches[0];
-    const target = getThrowDirectionFromButton(touch);
+  mobileThrow.active = true;
+  mobileThrow.touchId = touch.identifier;
+  aim.active = true;
+  mobileThrow.power = 0;
+  updateThrowButtonState();
 
-    aim.mouseX = target.x;
-    aim.mouseY = target.y;
+  const target = getThrowDirectionFromButton(touch);
 
-    event.preventDefault();
+  aim.mouseX = target.x;
+  aim.mouseY = target.y;
+
+  event.preventDefault();
   });
 
   throwButton.addEventListener("touchmove", (event) => {
-    if (!mobileThrow.active) return;
+  if (!mobileThrow.active) return;
 
-    const touch = event.touches[0];
-    const target = getThrowDirectionFromButton(touch);
+  const touch = findTouchById(event.touches, mobileThrow.touchId);
 
-    aim.mouseX = target.x;
-    aim.mouseY = target.y;
-    updateThrowButtonState();
-    event.preventDefault();
+  if (!touch) return;
+
+  const target = getThrowDirectionFromButton(touch);
+
+  aim.mouseX = target.x;
+  aim.mouseY = target.y;
+  updateThrowButtonState();
+
+  event.preventDefault();
   });
 
   throwButton.addEventListener("touchend", (event) => {
-    if (!mobileThrow.active) return;
+  if (!mobileThrow.active) return;
 
-    if (mobileThrow.power >= mobileThrow.minPower) {
-      const target = getLimitedAimTarget();
-      throwRock(target.x, target.y);
-    } else {
-      messageText.textContent = "拖曳方向後再放開，才會丟出石頭。";
-    }
+  const endedThrowTouch = findTouchById(event.changedTouches, mobileThrow.touchId);
 
-    mobileThrow.active = false;
-    mobileThrow.power = 0;
-    aim.active = false;
-    updateThrowButtonState();
+  if (!endedThrowTouch) return;
 
-    event.preventDefault();
+  if (mobileThrow.power >= mobileThrow.minPower) {
+    const target = getLimitedAimTarget();
+    throwRock(target.x, target.y);
+  } else {
+    messageText.textContent = "拖曳方向後再放開，才會丟出石頭。";
+  }
+
+  mobileThrow.active = false;
+  mobileThrow.touchId = null;
+  mobileThrow.power = 0;
+  aim.active = false;
+  updateThrowButtonState();
+
+  event.preventDefault();
   });
 
   throwButton.addEventListener("touchcancel", (event) => {
-    mobileThrow.active = false;
-    mobileThrow.power = 0;
-    aim.active = false;
-    updateThrowButtonState();
+  const canceledThrowTouch = findTouchById(event.changedTouches, mobileThrow.touchId);
 
-    event.preventDefault();
+  if (!canceledThrowTouch) return;
+
+  mobileThrow.active = false;
+  mobileThrow.touchId = null;
+  mobileThrow.power = 0;
+  aim.active = false;
+  updateThrowButtonState();
+
+  event.preventDefault();
   });
 }
