@@ -35,13 +35,8 @@ const keys = {};
 const mobileMove = {
   active: false,
   touchId: null,
-  baseX: 0,
-  baseY: 0,
-  knobX: 0,
-  knobY: 0,
-  dx: 0,
-  dy: 0,
-  maxDistance: 42,
+  targetX: 0,
+  targetY: 0,
   startCanvasX: 0,
   startCanvasY: 0,
   moved: false,
@@ -646,6 +641,10 @@ function isPlayerGuardingCabin() {
   return distance(player, getCabinCenter()) < fox.fearRange;
 }
 
+function isTouchOnPlayer(x, y) {
+  return distance({ x, y }, player) < player.size * 0.9;
+}
+
 function moveFoxToCabin(deltaTime) {
   const cabinCenter = getCabinCenter();
   const dx = cabinCenter.x - fox.x;
@@ -717,8 +716,14 @@ function movePlayer(deltaTime) {
   let moveY = 0;
 
   if (mobileMove.active) {
-    moveX = mobileMove.dx;
-    moveY = mobileMove.dy;
+    const dx = mobileMove.targetX - player.x;
+    const dy = mobileMove.targetY - player.y;
+    const targetDistance = Math.hypot(dx, dy);
+
+    if (targetDistance > 8) {
+      moveX = dx / targetDistance;
+      moveY = dy / targetDistance;
+    }
   } else {
     if (keys.ArrowLeft || keys.a) moveX -= 1;
     if (keys.ArrowRight || keys.d) moveX += 1;
@@ -738,42 +743,37 @@ function movePlayer(deltaTime) {
 }
 
 function startMobileMove(touch) {
-  const point = getTouchScreenPosition(touch);
   const canvasPoint = getTouchPosition(touch);
 
   mobileMove.active = true;
   mobileMove.touchId = touch.identifier;
-  mobileMove.baseX = point.x;
-  mobileMove.baseY = point.y;
-  mobileMove.knobX = point.x;
-  mobileMove.knobY = point.y;
-  mobileMove.dx = 0;
-  mobileMove.dy = 0;
+  mobileMove.targetX = canvasPoint.x;
+  mobileMove.targetY = canvasPoint.y;
   mobileMove.startCanvasX = canvasPoint.x;
   mobileMove.startCanvasY = canvasPoint.y;
   mobileMove.moved = false;
-
-  joystickBase.classList.remove("hidden");
-  joystickBase.style.left = `${point.x}px`;
-  joystickBase.style.top = `${point.y}px`;
-
-  updateJoystickKnob(point.x, point.y);
 }
 
 function updateMobileMove(touch) {
   if (!mobileMove.active) return;
 
-  const point = getTouchScreenPosition(touch);
-  updateJoystickKnob(point.x, point.y);
+  const canvasPoint = getTouchPosition(touch);
+
+  mobileMove.targetX = canvasPoint.x;
+  mobileMove.targetY = canvasPoint.y;
+
+  if (distance(
+    { x: mobileMove.startCanvasX, y: mobileMove.startCanvasY },
+    { x: canvasPoint.x, y: canvasPoint.y }
+  ) > 10) {
+    mobileMove.moved = true;
+  }
 }
 
 function stopMobileMove() {
   mobileMove.active = false;
   mobileMove.touchId = null;
-  mobileMove.dx = 0;
-  mobileMove.dy = 0;
-
-  joystickBase.classList.add("hidden");
+  mobileMove.moved = false;
 }
 
 function updateJoystickKnob(touchX, touchY) {
@@ -1751,6 +1751,11 @@ canvas.addEventListener("touchstart", (event) => {
   if (mobileMove.active) return;
 
   const touch = event.changedTouches[0];
+  const point = getTouchPosition(touch);
+
+  if (!isTouchOnPlayer(point.x, point.y)) {
+    return;
+  }
 
   startMobileMove(touch);
 

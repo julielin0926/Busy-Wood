@@ -965,3 +965,6 @@ body.mobile-playing .top-panel {
   }
 }
 
+.joystick-base {
+  display: none !important;
+}
