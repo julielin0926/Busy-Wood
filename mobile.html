@@ -4,14 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>森林搬搬忙</title>
-  <link rel="stylesheet" href="style.css">
-  <script>
-    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (isMobileDevice && !location.pathname.includes("mobile.html")) {
-      location.href = "mobile.html";
-    }
-  </script></head>
+  <link rel="stylesheet" href="mobile.css">
+  </head>
 <body>
   <div id="startScreen" class="start-screen">
     <h1>森林搬搬忙</h1>
@@ -129,7 +123,11 @@
       </div>
     </section>
 
-    <canvas id="gameCanvas" width="900" height="560"></canvas>
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <div id="joystickBase" class="joystick-base hidden">
+      <div id="joystickKnob" class="joystick-knob"></div>
+    </div>
 
     <div id="gameAlert" class="game-alert hidden">
       <div class="game-alert-box">
@@ -139,23 +137,15 @@
       </div>
     </div>
 
-    <section class="bottom-panel">
-      <div class="button-row">
-        <button id="restartButton" disabled>重新開始</button>
-      </div>
-      <p id="messageText">用 WASD 或方向鍵移動，靠近木頭按 Space 撿起，再回小屋按 Space 放下。</p>
-    </section>
+    <p id="messageText" class="mobile-message">點木頭搬回小屋，別讓狐狸偷走！</p>
 
-    <section class="ranking-panel">
-      <h2>本機排行榜</h2>
-      <ol id="rankingList"></ol>
-    </section>
   </main>
 
   <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
-  <script src="game.js"></script>
+  <script src="mobile-game.js"></script>
 </body>
 </html>
+
 
 
 
