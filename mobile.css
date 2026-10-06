@@ -781,7 +781,7 @@ body.mobile-playing .score-board span {
 }
 
 .demo-otter {
-  width: 58px;
+  width: 50px;
   height: auto;
   filter: drop-shadow(0 5px 4px rgba(81, 49, 26, 0.18));
 }
@@ -797,7 +797,7 @@ body.mobile-playing .score-board span {
 }
 
 .demo-finger {
-  width: 56px;
+  width: 80px;
   height: auto;
   transform: rotate(-18deg) translateY(4px);
   filter: drop-shadow(0 3px 0 rgba(81, 49, 26, 0.18));
