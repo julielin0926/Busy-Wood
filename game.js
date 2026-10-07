@@ -94,6 +94,15 @@ const thrownRock = {
   maxDistance: 260,
 };
 
+const reflectedRock = {
+  x: 0,
+  y: 0,
+  vx: 0,
+  vy: 0,
+  size: 18,
+  active: false,
+};
+
 const aim = {
   active: false,
   mouseX: 0,
@@ -303,6 +312,7 @@ function update(deltaTime) {
   updateFoxHurt(deltaTime);
   updateFox(deltaTime);
   updateThrownRock(deltaTime);
+  updateReflectedRock(deltaTime);
   updateRockRespawn(deltaTime);
   updateFoxDenWarning(deltaTime);
 
@@ -359,7 +369,16 @@ function updateThrownRock(deltaTime) {
   startRockRespawn();
   messageText.textContent = "石頭沒有打中，新的石頭等等會出現。";
   return;
-}
+  }
+
+  const hitTornado = tornadoes.find((tornado) => {
+    return distance(thrownRock, tornado) < tornado.radius + thrownRock.size;
+  });
+
+  if (hitTornado) {
+    reflectRockFromTornado(hitTornado);
+    return;
+  }
 
   if (isFoxInDen() && distance(thrownRock, fox) < fox.size) {
     thrownRock.active = false;
@@ -373,6 +392,62 @@ function updateThrownRock(deltaTime) {
     hitFoxWithRock();
     startRockRespawn();
     return;
+  }
+}
+
+function reflectRockFromTornado(tornado) {
+  const dx = player.x - tornado.x;
+  const dy = player.y - tornado.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const speed = 560;
+
+  reflectedRock.x = tornado.x;
+  reflectedRock.y = tornado.y;
+  reflectedRock.vx = (dx / length) * speed;
+  reflectedRock.vy = (dy / length) * speed;
+  reflectedRock.active = true;
+
+  thrownRock.active = false;
+  startRockRespawn();
+
+  messageText.textContent = "石頭打到龍捲風，被甩回來了！";
+}
+
+function updateReflectedRock(deltaTime) {
+  if (!reflectedRock.active) return;
+
+  reflectedRock.x += reflectedRock.vx * deltaTime;
+  reflectedRock.y += reflectedRock.vy * deltaTime;
+
+  if (
+    reflectedRock.x < -40 ||
+    reflectedRock.x > canvas.width + 40 ||
+    reflectedRock.y < -40 ||
+    reflectedRock.y > canvas.height + 40
+  ) {
+    reflectedRock.active = false;
+    return;
+  }
+
+  if (distance(reflectedRock, player) < player.size * 0.35 + reflectedRock.size) {
+    reflectedRock.active = false;
+    game.stunTime = 1.8;
+    game.invincibleTime = 2.5;
+
+    if (game.carryingWood) {
+      const carriedWood = woods[game.carryingWoodIndex];
+
+      game.carryingWood = false;
+      game.carryingWoodIndex = null;
+
+      if (carriedWood) {
+        carriedWood.visible = true;
+        carriedWood.x = clamp(player.x - 42, 60, 840);
+        carriedWood.y = clamp(player.y + 24, 60, 500);
+      }
+    }
+
+    messageText.textContent = "被甩回來的石頭砸到，暫時不能動！";
   }
 }
 
@@ -909,6 +984,10 @@ function draw() {
   if (thrownRock.active) {
   drawRock(thrownRock.x, thrownRock.y);
   }
+
+  if (reflectedRock.active) {
+  drawRock(reflectedRock.x, reflectedRock.y);
+}
 
   if (aim.active) {
     drawAimLine();
