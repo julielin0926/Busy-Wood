@@ -33,6 +33,8 @@ const assets = {
   rock: loadImage("assets/rock.png"),
   foxDen: loadImage("assets/fox-den.png"),
   tornado: loadImage("assets/tornado.png"),
+  bagEmpty: loadImage("assets/otter-bag-preview-v2.png"),
+  bagFull: loadImage("assets/otter-bag-full-preview-v2.png"),
 };
 
 const game = {
@@ -42,6 +44,12 @@ const game = {
   score: 0,
   carryingWood: false,
   carryingWoodIndex: null,
+  carryingWoodCount: 0,
+  carryingWoodIndexes: [],
+  deliveredWoodCount: 0,
+  hasBag: false,
+  bagAlertShown: false,
+  pausedByAlert: false,
   carryingRock: false,
   stunTime: 0,
   invincibleTime: 0,
@@ -170,6 +178,12 @@ function resetGame() {
   game.score = 0;
   game.carryingWood = false;
   game.carryingWoodIndex = null;
+  game.carryingWoodCount = 0;
+  game.carryingWoodIndexes = [];
+  game.deliveredWoodCount = 0;
+  game.hasBag = false;
+  game.bagAlertShown = false;
+  game.pausedByAlert = false;
   game.carryingRock = false;
   game.stunTime = 0;
   game.invincibleTime = 0;
@@ -219,9 +233,14 @@ function playBackgroundMusic() {
     });
   }
 }
-function showGameAlert(text) {
+
+function showGameAlert(text, shouldPause = false) {
   gameAlertText.textContent = text;
   gameAlert.classList.remove("hidden");
+
+  if (shouldPause) {
+    game.pausedByAlert = true;
+  }
 }
 
 
@@ -288,7 +307,10 @@ function gameLoop(timestamp) {
   const deltaTime = (timestamp - game.lastTime) / 1000;
   game.lastTime = timestamp;
 
-  update(deltaTime);
+  if (!game.pausedByAlert) {
+    update(deltaTime);
+  }
+
   draw();
 
   if (game.running) {
@@ -297,6 +319,10 @@ function gameLoop(timestamp) {
 }
 
 function update(deltaTime) {
+  if (game.pausedByAlert) {
+    return;
+  }
+
   game.timeLeft -= deltaTime;
 
   if (game.timeLeft <= 0) {
@@ -383,7 +409,7 @@ function updateThrownRock(deltaTime) {
   if (isFoxInDen() && distance(thrownRock, fox) < fox.size) {
     thrownRock.active = false;
     startRockRespawn();
-    showGameAlert("不能侵門踏戶，打給動保喔!!!!");
+    showGameAlert("不能侵門踏戶，打給動保喔!!!!", true);
     return;
   }
 
@@ -434,18 +460,26 @@ function updateReflectedRock(deltaTime) {
     game.stunTime = 1.8;
     game.invincibleTime = 2.5;
 
-    if (game.carryingWood) {
-      const carriedWood = woods[game.carryingWoodIndex];
+  if (game.carryingWood) {
+    const droppedIndexes = game.carryingWoodIndexes.length > 0
+      ? [...game.carryingWoodIndexes]
+      : [game.carryingWoodIndex];
 
-      game.carryingWood = false;
-      game.carryingWoodIndex = null;
+    game.carryingWood = false;
+    game.carryingWoodIndex = null;
+    game.carryingWoodCount = 0;
+    game.carryingWoodIndexes = [];
 
-      if (carriedWood) {
-        carriedWood.visible = true;
-        carriedWood.x = clamp(player.x - 42, 60, 840);
-        carriedWood.y = clamp(player.y + 24, 60, 500);
-      }
-    }
+    droppedIndexes.forEach((woodIndex, index) => {
+      const carriedWood = woods[woodIndex];
+
+  if (carriedWood) {
+    carriedWood.visible = true;
+    carriedWood.x = clamp(player.x - 42 + index * 34, 60, 840);
+    carriedWood.y = clamp(player.y + 24 + index * 10, 60, 500);
+  }
+  });
+}
 
     messageText.textContent = "被甩回來的石頭砸到，暫時不能動！";
   }
@@ -489,7 +523,7 @@ function updateFoxDenWarning(deltaTime) {
     pushPlayerAwayFromFoxDen();
 
     if (game.foxDenWarningCooldown === 0) {
-      showGameAlert("不能侵門踏戶，打給動保喔!!!!");
+      showGameAlert("不能侵門踏戶，打給動保喔!!!!", true);
       game.foxDenWarningCooldown = 2;
     }
   }
@@ -714,18 +748,26 @@ function checkTornadoCollision() {
   game.invincibleTime = 2.5;
 
   if (game.carryingWood) {
-  const carriedWood = woods[game.carryingWoodIndex];
+  const droppedIndexes = game.carryingWoodIndexes.length > 0
+    ? [...game.carryingWoodIndexes]
+    : [game.carryingWoodIndex];
 
   game.carryingWood = false;
   game.carryingWoodIndex = null;
+  game.carryingWoodCount = 0;
+  game.carryingWoodIndexes = [];
 
-  if (carriedWood) {
-    carriedWood.visible = true;
-    carriedWood.x = clamp(player.x - 42, 60, 640);
-    carriedWood.y = clamp(player.y + 24, 60, 500);
-  }
+  droppedIndexes.forEach((woodIndex, index) => {
+    const carriedWood = woods[woodIndex];
 
-  messageText.textContent = "被龍捲風吹到，木頭掉了！";
+    if (carriedWood) {
+      carriedWood.visible = true;
+      carriedWood.x = clamp(player.x - 42 + index * 34, 60, 840);
+      carriedWood.y = clamp(player.y + 24 + index * 10, 60, 500);
+    }
+  });
+
+  messageText.textContent = "被龍捲風吹到，包包裡的木頭掉了！";
 }
 }
 
@@ -846,10 +888,22 @@ function getHiddenWoodIndexForFox() {
   return null;
 }
 
+function unlockBagIfNeeded() {
+  if (game.hasBag || game.bagAlertShown) return;
+  if (game.deliveredWoodCount < 3) return;
+
+  game.hasBag = true;
+  game.bagAlertShown = true;
+
+  showGameAlert("獲得包包！現在可以一次搬 3 根木頭。", true);
+}
+
 function interact() {
   if (!game.running) return;
 
-  if (!game.carryingWood) {
+  const maxCarryWood = game.hasBag ? 3 : 1;
+
+  if (game.carryingWoodCount < maxCarryWood) {
   const woodIndex = woods.findIndex((wood) => {
     return wood.visible && distance(player, wood) < 46;
   });
@@ -857,25 +911,51 @@ function interact() {
   if (woodIndex !== -1) {
     game.carryingWood = true;
     game.carryingWoodIndex = woodIndex;
+    game.carryingWoodCount += 1;
+    game.carryingWoodIndexes.push(woodIndex);
     woods[woodIndex].visible = false;
-    messageText.textContent = "撿到木頭了，快搬回小屋！";
+
+    if (game.hasBag) {
+      messageText.textContent = `撿到木頭了！目前背包 ${game.carryingWoodCount}/3`;
+    } else {
+      messageText.textContent = "撿到木頭了，快搬回小屋！";
+    }
+
     return;
   }
 }
 
   if (game.carryingWood && isPlayerInCabin()) {
-  const carriedWood = woods[game.carryingWoodIndex];
+  const deliveredCount = Math.max(1, game.carryingWoodCount);
+  const deliveredIndexes = game.carryingWoodIndexes.length > 0
+  ? [...game.carryingWoodIndexes]
+  : [game.carryingWoodIndex];
 
   game.carryingWood = false;
   game.carryingWoodIndex = null;
-  game.score += 1;
+  game.carryingWoodCount = 0;
+  game.carryingWoodIndexes = [];
 
-  if (carriedWood) {
-    spawnWood(carriedWood);
-  }
+  game.score += deliveredCount;
+  game.deliveredWoodCount += deliveredCount;
+
+  deliveredIndexes.forEach((woodIndex) => {
+    const carriedWood = woods[woodIndex];
+
+    if (carriedWood) {
+      spawnWood(carriedWood);
+    }
+  });
 
   updateHud();
-  messageText.textContent = "成功放下木頭，分數 +1！";
+
+  if (!game.hasBag && game.deliveredWoodCount >= 3) {
+    messageText.textContent = `成功放下 ${deliveredCount} 根木頭，分數 +${deliveredCount}！`;
+    unlockBagIfNeeded();
+    return;
+  }
+
+  messageText.textContent = `成功放下 ${deliveredCount} 根木頭，分數 +${deliveredCount}！`;
 }
 }
 
@@ -968,6 +1048,8 @@ function draw() {
   } else {
     drawGround();
   }
+
+  drawBagStatus();
 
   woods.forEach((wood) => {
   if (wood.visible) {
@@ -1397,14 +1479,42 @@ function roundRect(x, y, width, height, radius) {
   ctx.closePath();
 }
 
+function drawBagStatus() {
+  if (!game.hasBag) return;
+
+  ctx.save();
+
+  const x = 24;
+  const y = 24;
+
+  ctx.fillStyle = "rgba(255, 247, 220, 0.9)";
+  ctx.strokeStyle = "#7b4a24";
+  ctx.lineWidth = 3;
+
+  roundRect(x, y, 150, 42, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#4b2a15";
+  ctx.font = "bold 18px Microsoft JhengHei";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`包包 ${game.carryingWoodCount}/3`, x + 18, y + 21);
+
+  ctx.restore();
+}
+
 function drawPlayer() {
   if (game.stunTime > 0 || game.invincibleTime > 0) {
   ctx.save();
   ctx.globalAlpha = 0.45 + Math.sin(Date.now() / 90) * 0.25;
   }
-
-  if (assets.otter.complete) {
-    drawImageCentered(assets.otter, player.x, player.y - 18, 44, 76);
+if (game.hasBag && game.carryingWoodCount >= 3 && assets.bagFull.complete) {
+  drawImageCentered(assets.bagFull, player.x, player.y - 19, 90, 95);
+} else if (game.hasBag && assets.bagEmpty.complete) {
+  drawImageCentered(assets.bagEmpty, player.x, player.y - 19, 90, 95);
+} else if (assets.otter.complete) {
+    drawImageCentered(assets.otter, player.x, player.y - 18, 40, 76);
   } else {
     ctx.fillStyle = "#2f5fa8";
     ctx.beginPath();
@@ -1412,7 +1522,7 @@ function drawPlayer() {
     ctx.fill();
   }
 
-  if (game.carryingWood) {
+  if (game.carryingWood && !game.hasBag) {
     drawWood(player.x, player.y - 58);
   }
 
@@ -1505,6 +1615,7 @@ if (homeButton) {
 
 closeAlertButton.addEventListener("click", function () {
   gameAlert.classList.add("hidden");
+  game.pausedByAlert = false;
 });
 
 resetGame();
