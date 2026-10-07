@@ -28,6 +28,7 @@ const assets = {
   background: loadImage("assets/forest-background.png"),
   otter: loadImage("assets/otter.png"),
   fox: loadImage("assets/fox.png"),
+  foxAlert: loadImage("assets/fox-alert.png"),
   wood: loadImage("assets/wood.png"),
   rock: loadImage("assets/rock.png"),
   foxDen: loadImage("assets/fox-den.png"),
@@ -45,6 +46,7 @@ const game = {
   stunTime: 0,
   invincibleTime: 0,
   foxDenWarningCooldown: 0,
+  tensionMode: false,
 };
 
 const player = {
@@ -163,6 +165,7 @@ function resetGame() {
   game.stunTime = 0;
   game.invincibleTime = 0;
   game.foxDenWarningCooldown = 0;
+  game.tensionMode = false;
 
   tornadoes[0].x = tornadoes[0].startX;
   tornadoes[0].y = tornadoes[0].startY;
@@ -295,6 +298,7 @@ function update(deltaTime) {
     return;
   }
 
+  updateTensionMode();
   updateTornadoes(deltaTime);
   updateFoxHurt(deltaTime);
   updateFox(deltaTime);
@@ -317,6 +321,20 @@ function update(deltaTime) {
   updateHud();
 }
 
+function updateTensionMode() {
+  if (game.tensionMode || game.timeLeft > 30) return;
+
+  game.tensionMode = true;
+  messageText.textContent = "剩下 30 秒！狐狸和龍捲風變得更急了！";
+}
+
+function getFoxSpeedMultiplier() {
+  return game.tensionMode ? 1.25 : 1;
+}
+
+function getTornadoSpeedMultiplier() {
+  return game.tensionMode ? 1.18 : 1;
+}
 function updateRockRespawn(deltaTime) {
   if (rock.respawnTimer <= 0) return;
 
@@ -531,8 +549,10 @@ function chasePlayer(tornado, deltaTime) {
 
   if (length < 1) return;
 
-  tornado.x += (dx / length) * tornado.chaseSpeed * deltaTime;
-  tornado.y += (dy / length) * tornado.chaseSpeed * deltaTime;
+  const currentSpeed = tornado.chaseSpeed * getTornadoSpeedMultiplier();
+
+  tornado.x += (dx / length) * currentSpeed * deltaTime;
+  tornado.y += (dy / length) * currentSpeed * deltaTime;
 }
 
 function patrolTornado(tornado, deltaTime) {
@@ -560,8 +580,10 @@ function patrolTornado(tornado, deltaTime) {
   }
 
   tornado.patrolTimer = 0;
-  tornado.x += (dx / length) * tornado.speed * deltaTime;
-  tornado.y += (dy / length) * tornado.speed * deltaTime;
+  const currentSpeed = tornado.speed * getTornadoSpeedMultiplier();
+
+  tornado.x += (dx / length) * currentSpeed * deltaTime;
+  tornado.y += (dy / length) * currentSpeed * deltaTime;
 }
 
 function getCabinCenter() {
@@ -639,7 +661,8 @@ function moveFoxToPoint(target, deltaTime) {
 
   if (length < 1) return;
 
-  const currentSpeed = fox.hurtTime > 0 ? fox.speed * 0.5 : fox.speed;
+  const baseSpeed = fox.speed * getFoxSpeedMultiplier();
+  const currentSpeed = fox.hurtTime > 0 ? baseSpeed * 0.5 : baseSpeed;
 
   fox.x += (dx / length) * currentSpeed * deltaTime;
   fox.y += (dy / length) * currentSpeed * deltaTime;
@@ -688,6 +711,19 @@ function pickUpRock() {
   game.carryingRock = true;
   rock.visible = false;
   messageText.textContent = "撿起石頭了！之後可以用滑鼠瞄準丟向狐狸。";
+}
+
+function tryPickUpRock() {
+  if (!game.running) return false;
+  if (game.carryingRock) return false;
+  if (!rock.visible) return false;
+
+  if (distance(player, rock) > 70) {
+    return false;
+  }
+
+  pickUpRock();
+  return true;
 }
 
 function throwRock(targetX, targetY) {
@@ -865,7 +901,6 @@ function draw() {
   });
 
   drawFoxDen();
-  drawFoxDen();
 
   if (rock.visible) {
     drawRock(rock.x, rock.y);
@@ -881,6 +916,10 @@ function draw() {
 
   tornadoes.forEach(drawTornado);
   drawFox(fox.x, fox.y);
+
+  if (shouldShowFoxWarning()) {
+    drawFoxWarning(fox.x, fox.y);
+  }
   drawPlayer();
 }
 
@@ -1181,6 +1220,41 @@ function drawFox(x, y) {
   }
 }
 
+function shouldShowFoxWarning() {
+  return (
+    fox.carryingWood ||
+    fox.state === "goToCabin" ||
+    fox.state === "returnHome" ||
+    distance(fox, foxDen) > foxDen.radius + 20
+  );
+}
+
+function drawFoxWarning(x, y) {
+  if (assets.foxAlert.complete) {
+    drawImageCentered(assets.foxAlert, x, y - 56, 42, 42);
+    return;
+  }
+
+  ctx.save();
+
+  ctx.fillStyle = "#ff4d2d";
+  ctx.strokeStyle = "#fff7d6";
+  ctx.lineWidth = 4;
+
+  ctx.beginPath();
+  ctx.arc(x, y - 48, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 24px Microsoft JhengHei";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("!", x, y - 49);
+
+  ctx.restore();
+}
+
 function drawAimLine() {
   const target = getLimitedAimTarget();
 
@@ -1298,13 +1372,25 @@ function clamp(value, min, max) {
 window.addEventListener("keydown", (event) => {
   keys[event.key] = true;
 
-  if (event.code === "Space") {
+  if (
+    event.code === "Space" ||
+    event.key === "ArrowUp" ||
+    event.key === "ArrowDown" ||
+    event.key === "ArrowLeft" ||
+    event.key === "ArrowRight"
+  ) {
     event.preventDefault();
+  }
+
+  if (event.code === "Space") {
+    if (tryPickUpRock()) {
+      return;
+    }
+
     interact();
   }
 
   if (event.key === "e" || event.key === "E") {
-    event.preventDefault();
     pickUpRock();
   }
 });
@@ -1373,6 +1459,11 @@ canvas.addEventListener("mouseup", (event) => {
 
   aim.active = false;
 });
+
+
+
+
+
 
 
 
