@@ -379,34 +379,6 @@ function hideTutorialHint(key) {
 
 function updateTutorialHints() {
   if (!game.running || game.pausedByAlert) return;
-
-  if (!game.tutorialHintsSeen.cabin && game.carryingWood && isPlayerInCabin()) {
-    showTutorialHint("cabin", "靠近小屋時，按 Space 放下木頭");
-    return;
-  }
-
-  if (!game.tutorialHintsSeen.rock && rock.visible && distance(player, rock) < 100) {
-    showTutorialHint("rock", "靠近石頭時，按 Space 或 E 撿石頭");
-    return;
-  }
-
-  if (!game.tutorialHintsSeen.throwRock && game.carryingRock) {
-    showTutorialHint("throwRock", "按住滑鼠左鍵瞄準，放開丟石頭");
-    return;
-  }
-
-  if (!game.tornadoTutorialDone && !game.tornadoTutorialActive) {
-    const tornadoIsNear = tornadoes.some((tornado) => {
-      return distance(player, tornado) < tornado.chaseRange + 35;
-    });
-
-    if (tornadoIsNear) {
-      game.tornadoTutorialActive = true;
-      game.tornadoTutorialNeedsFreshInput = true;
-      showTutorialHint("tornado", "颱風靠近了，按 A/D 或左右方向鍵快逃！");
-      return;
-    }
-  }
 }
 
 function update(deltaTime) {
@@ -443,15 +415,22 @@ function update(deltaTime) {
   } else {
     movePlayer(deltaTime);
 
-  const pressingHorizontalMove =
-  keys.ArrowLeft || keys.ArrowRight || keys.a || keys.d;
+  const pressingMoveKey =
+  keys.ArrowLeft ||
+  keys.ArrowRight ||
+  keys.ArrowUp ||
+  keys.ArrowDown ||
+  keys.a ||
+  keys.d ||
+  keys.w ||
+  keys.s;
 
   if (game.tornadoTutorialActive) {
-    if (!pressingHorizontalMove) {
+    if (!pressingMoveKey) {
       game.tornadoTutorialNeedsFreshInput = false;
     }
 
-    if (pressingHorizontalMove && !game.tornadoTutorialNeedsFreshInput) {
+    if (pressingMoveKey && !game.tornadoTutorialNeedsFreshInput) {
       game.tornadoTutorialActive = false;
       game.tornadoTutorialDone = true;
       game.tutorialHintVisible = false;
@@ -1039,6 +1018,12 @@ function interact() {
     }
 
     hideTutorialHint("wood");
+
+    if (!game.tornadoTutorialDone && !game.tornadoTutorialActive) {
+      game.tornadoTutorialActive = true;
+      game.tornadoTutorialNeedsFreshInput = true;
+      showTutorialHint("tornado", "颱風靠近了，按 WASD 或方向鍵快逃！");
+    }
 
     return;
   }
