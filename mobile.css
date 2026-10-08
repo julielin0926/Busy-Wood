@@ -1044,3 +1044,15 @@ body.mobile-playing .top-panel {
 body.mobile-playing .game-shell.has-bag-ui .mobile-message {
   left: 150px;
 }
+
+body.mobile-playing .tutorial-screen:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 90;
+  border-radius: 0;
+}

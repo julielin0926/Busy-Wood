@@ -9,6 +9,7 @@ const startScreen = document.getElementById("startScreen");
 const nameScreen = document.getElementById("nameScreen");
 const tutorialScreen = document.getElementById("tutorialScreen");
 const gameShell = document.getElementById("gameShell");
+const mobileHintButton = document.getElementById("mobileHintButton");
 const showNameButton = document.getElementById("showNameButton");
 const exitGameButton = document.getElementById("exitGameButton");
 const confirmNameButton = document.getElementById("confirmNameButton");
@@ -34,6 +35,7 @@ const closeAnnouncementButton = document.getElementById("closeAnnouncementButton
 const announcementFrame = document.getElementById("announcementFrame");
 const bagStatusText = document.getElementById("bagStatusText");
 
+let openedTutorialFromGame = false;
 const keys = {};
 
 const mobileMove = {
@@ -2063,6 +2065,19 @@ if (exitGameButton) {
   exitGameButton.addEventListener("click", exitGame);
 }
 
+if (mobileHintButton) {
+  mobileHintButton.addEventListener("click", function () {
+    if (!game.running) return;
+
+    openedTutorialFromGame = true;
+    game.pausedByAlert = true;
+
+    gameShell.classList.add("hidden");
+    tutorialScreen.classList.remove("hidden");
+    tutorialContinueButton.textContent = "回到遊戲";
+  });
+}
+
 showNameButton.addEventListener("click", function () {
   startScreen.classList.add("hidden");
   tutorialScreen.classList.remove("hidden");
@@ -2070,6 +2085,15 @@ showNameButton.addEventListener("click", function () {
 
 tutorialContinueButton.addEventListener("click", function () {
   tutorialScreen.classList.add("hidden");
+
+  if (openedTutorialFromGame) {
+    openedTutorialFromGame = false;
+    gameShell.classList.remove("hidden");
+    game.pausedByAlert = false;
+    tutorialContinueButton.textContent = "我懂了，開始填名字";
+    return;
+  }
+
   nameScreen.classList.remove("hidden");
   playerNameInput.focus();
 });
