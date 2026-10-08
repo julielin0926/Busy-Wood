@@ -1021,3 +1021,21 @@ body.mobile-playing .top-panel {
   background: #256b3a;
 }
 
+.bag-status-text {
+  position: absolute;
+  top: 12px;
+  left: 28px;
+  z-index: 35;
+  padding: 8px 14px;
+  border: 2px solid #8b5a2b;
+  border-radius: 999px;
+  background: rgba(255, 248, 223, 0.92);
+  color: #4b2a15;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+
+body.mobile-playing .game-shell.has-bag-ui .mobile-message {
+  left: 150px;
+}

@@ -31,6 +31,7 @@ const mobileHomeButton = document.getElementById("mobileHomeButton");
 const mobileCloseGameButton = document.getElementById("mobileCloseGameButton");
 const announcementModal = document.getElementById("announcementModal");
 const closeAnnouncementButton = document.getElementById("closeAnnouncementButton");
+const bagStatusText = document.getElementById("bagStatusText");
 
 const keys = {};
 
@@ -100,10 +101,10 @@ const player = {
 };
 
 const spawnArea = {
-  minX: 110,
-  maxX: 980,
+  minX: 120,
+  maxX: 1160,
   minY: 120,
-  maxY: 610,
+  maxY: 620,
 };
 
 const cabin = {
@@ -286,6 +287,20 @@ function playBackgroundMusic() {
 function showGameAlert(text) {
   gameAlertText.textContent = text;
   gameAlert.classList.remove("hidden");
+}
+
+function clearMobileInputState() {
+  stopMobileMove();
+
+  mobileTap.active = false;
+  mobileTap.touchId = null;
+
+  mobileThrow.active = false;
+  mobileThrow.touchId = null;
+  mobileThrow.power = 0;
+
+  aim.active = false;
+  updateThrowButtonState();
 }
 
 
@@ -478,6 +493,8 @@ function updateThrownRock(deltaTime) {
 
   if (hitTornado) {
     reflectRockFromTornado(hitTornado);
+    thrownRock.active = false;
+    messageText.textContent = "石頭被颱風甩回來了！快躲開！";
     return;
   }
 
@@ -535,17 +552,27 @@ function updateReflectedRock(deltaTime) {
     game.stunTime = 1.8;
     game.invincibleTime = 2.5;
 
+    clearMobileInputState();
+
     if (game.carryingWood) {
-      const carriedWood = woods[game.carryingWoodIndex];
+      const droppedIndexes = game.carryingWoodIndexes.length > 0
+        ? [...game.carryingWoodIndexes]
+        : [game.carryingWoodIndex];
 
       game.carryingWood = false;
       game.carryingWoodIndex = null;
+      game.carryingWoodCount = 0;
+      game.carryingWoodIndexes = [];
 
-      if (carriedWood) {
-        carriedWood.visible = true;
-        carriedWood.x = clamp(player.x - 42, spawnArea.minX, spawnArea.maxX);
-        carriedWood.y = clamp(player.y + 24, spawnArea.minY, spawnArea.maxY);
-      }
+      droppedIndexes.forEach((woodIndex, index) => {
+        const carriedWood = woods[woodIndex];
+
+        if (carriedWood) {
+          carriedWood.visible = true;
+          carriedWood.x = clamp(player.x - 42 + index * 36, spawnArea.minX, spawnArea.maxX);
+          carriedWood.y = clamp(player.y + 24 + index * 12, spawnArea.minY, spawnArea.maxY);
+        }
+      });
     }
 
     messageText.textContent = "被甩回來的石頭砸到，暫時不能動！";
@@ -604,6 +631,7 @@ function pushPlayerAwayFromFoxDen() {
   player.x = clamp(foxDen.x + (dx / length) * pushDistance, player.radius, canvas.width - player.radius);
   player.y = clamp(foxDen.y + (dy / length) * pushDistance, player.radius, canvas.height - player.radius);
 }
+
 function updateFoxHurt(deltaTime) {
   if (fox.hurtTime > 0) {
     fox.hurtTime = Math.max(0, fox.hurtTime - deltaTime);
@@ -700,6 +728,23 @@ function updateTornadoes(deltaTime) {
         tornado.y = clamp(tornado.y, tornado.minY, tornado.maxY);
         pushTornadoAwayFromCabin(tornado);
   });
+}
+
+function updateBagStatusText() {
+  const showBagStatus = game.hasBag && game.running;
+
+  if (bagStatusText) {
+    if (showBagStatus) {
+      bagStatusText.textContent = `包包 ${game.carryingWoodCount}/3`;
+      bagStatusText.classList.remove("hidden");
+    } else {
+      bagStatusText.classList.add("hidden");
+    }
+  }
+
+  if (gameShell) {
+    gameShell.classList.toggle("has-bag-ui", showBagStatus);
+  }
 }
 
 
@@ -810,27 +855,60 @@ function moveFoxBack(deltaTime) {
 function checkTornadoCollision() {
   if (game.stunTime > 0 || game.invincibleTime > 0) return;
 
-  const hit = tornadoes.some((tornado) => distance(player, tornado) < tornado.radius + player.size * 0.28);
+  const hitTornado = tornadoes.find((tornado) => {
+  return distance(player, tornado) < tornado.radius + player.size * 0.28;
+  });
 
-  if (!hit) return;
+  if (!hitTornado) return;
 
   game.stunTime = 1.1;
   game.invincibleTime = 2.5;
 
+  clearMobileInputState();
+  pushPlayerAwayFromTornado(hitTornado);
+
   if (game.carryingWood) {
-  const carriedWood = woods[game.carryingWoodIndex];
+    const droppedIndexes = game.carryingWoodIndexes.length > 0
+      ? [...game.carryingWoodIndexes]
+      : [game.carryingWoodIndex];
 
-  game.carryingWood = false;
-  game.carryingWoodIndex = null;
+    game.carryingWood = false;
+    game.carryingWoodIndex = null;
+    game.carryingWoodCount = 0;
+    game.carryingWoodIndexes = [];
 
-  if (carriedWood) {
-    carriedWood.visible = true;
-    carriedWood.x = clamp(player.x - 42, 60, 640);
-    carriedWood.y = clamp(player.y + 24, 60, 500);
+    droppedIndexes.forEach((woodIndex, index) => {
+      const carriedWood = woods[woodIndex];
+
+      if (carriedWood) {
+        carriedWood.visible = true;
+        carriedWood.x = clamp(player.x - 42 + index * 36, spawnArea.minX, spawnArea.maxX);
+        carriedWood.y = clamp(player.y + 24 + index * 12, spawnArea.minY, spawnArea.maxY);
+      }
+    });
+
+    messageText.textContent = "被龍捲風吹到，木頭掉了！";
   }
-
-  messageText.textContent = "被龍捲風吹到，木頭掉了！";
 }
+
+function pushPlayerAwayFromTornado(tornado) {
+  const dx = player.x - tornado.x;
+  const dy = player.y - tornado.y;
+  const length = Math.hypot(dx, dy) || 1;
+
+  const pushDistance = tornado.radius + player.size * 0.7 + 50;
+
+  player.x = clamp(
+    tornado.x + (dx / length) * pushDistance,
+    player.size / 2,
+    canvas.width - player.size / 2
+  );
+
+  player.y = clamp(
+    tornado.y + (dy / length) * pushDistance,
+    player.size / 2,
+    canvas.height - player.size / 2
+  );
 }
 
 function moveFoxToPoint(target, deltaTime) {
@@ -941,44 +1019,51 @@ function isTouchOnPickupObject(x, y) {
 
 function handleMobileTap(x, y) {
   if (!game.running) return;
-
   if (game.carryingWood && isPointInCabin(x, y)) {
     if (!isPlayerInCabin()) {
       messageText.textContent = "靠近小屋後再點小屋放木頭。";
       return;
     }
 
-    const carriedWood = woods[game.carryingWoodIndex];
+    const deliveredCount = Math.max(1, game.carryingWoodCount);
+    const deliveredIndexes = game.carryingWoodIndexes.length > 0
+      ? [...game.carryingWoodIndexes]
+      : [game.carryingWoodIndex];
 
     game.carryingWood = false;
     game.carryingWoodIndex = null;
     game.carryingWoodCount = 0;
     game.carryingWoodIndexes = [];
 
-    game.score += 1;
-    game.deliveredWoodCount += 1;
+    game.score += deliveredCount;
+    game.deliveredWoodCount += deliveredCount;
 
-    if (carriedWood) {
-      spawnWood(carriedWood);
-    }
+    deliveredIndexes.forEach((woodIndex) => {
+      const carriedWood = woods[woodIndex];
+
+      if (carriedWood) {
+        spawnWood(carriedWood);
+      }
+    });
 
     updateHud();
 
+    messageText.textContent = `成功放下 ${deliveredCount} 根木頭，分數 +${deliveredCount}！`;
+
     if (!game.hasBag && game.deliveredWoodCount >= 3) {
-      messageText.textContent = "成功放下木頭，分數 +1！";
       unlockBagIfNeeded();
-      return;
     }
 
-    messageText.textContent = "成功放下木頭，分數 +1！";
     return;
-    }
+  }
 
   const tappedWoodIndex = woods.findIndex((wood) => {
   return wood.visible && distance({ x, y }, wood) < 85;
   });
 
-  if (!game.carryingWood && tappedWoodIndex !== -1) {
+  const maxCarryWood = game.hasBag ? 3 : 1;
+
+  if (game.carryingWoodCount < maxCarryWood && tappedWoodIndex !== -1) {
     if (distance(player, woods[tappedWoodIndex]) > 120) {
       messageText.textContent = "離木頭太遠了，靠近一點再點木頭。";
       return;
@@ -986,10 +1071,18 @@ function handleMobileTap(x, y) {
 
     game.carryingWood = true;
     game.carryingWoodIndex = tappedWoodIndex;
-    game.carryingWoodCount = 1;
-    game.carryingWoodIndexes = [tappedWoodIndex];
+    game.carryingWoodCount += 1;
+    game.carryingWoodIndexes.push(tappedWoodIndex);
     woods[tappedWoodIndex].visible = false;
-    messageText.textContent = "撿到木頭了，快搬回小屋！";
+
+    clearMobileInputState();
+
+    if (game.hasBag) {
+      messageText.textContent = `撿到木頭了！目前包包 ${game.carryingWoodCount}/3`;
+    } else {
+      messageText.textContent = "撿到木頭了，快搬回小屋！";
+    }
+
     return;
   }
 
@@ -1023,6 +1116,9 @@ function pickUpRock() {
 
   game.carryingRock = true;
   rock.visible = false;
+
+  clearMobileInputState();
+
   messageText.textContent = "撿起石頭了！按住右下角石頭按鈕瞄準狐狸。";
   updateThrowButton();
 }
@@ -1160,6 +1256,7 @@ function updateHud() {
   timeText.textContent = Math.ceil(game.timeLeft);
   scoreText.textContent = game.score;
   updateThrowButton();
+  updateBagStatusText();
 }
 
 function updateThrowButton() {
@@ -1305,6 +1402,7 @@ function draw() {
 
   drawPlayer();
 }
+
 
 function drawGround() {
   const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -1736,7 +1834,11 @@ function drawPlayer() {
   ctx.globalAlpha = 0.45 + Math.sin(Date.now() / 90) * 0.25;
   }
 
-  if (assets.otter.complete) {
+  if (game.hasBag && game.carryingWoodCount >= 3 && assets.bagFull.complete) {
+    drawImageCentered(assets.bagFull, player.x, player.y - 19, 90, 95);
+  } else if (game.hasBag && assets.bagEmpty.complete) {
+    drawImageCentered(assets.bagEmpty, player.x, player.y - 19, 90, 95);
+  } else if (assets.otter.complete) {
     drawImageCentered(assets.otter, player.x, player.y - 18, 44, 76);
   } else {
     ctx.fillStyle = "#2f5fa8";
@@ -1745,8 +1847,8 @@ function drawPlayer() {
     ctx.fill();
   }
 
-  if (game.carryingWood) {
-    drawWood(player.x, player.y - 58);
+  if (game.carryingWood && !game.hasBag) {
+  drawWood(player.x, player.y - 58);
   }
 
   if (game.carryingRock) {
@@ -1845,6 +1947,8 @@ if (mobileCloseGameButton) {
 
 closeAlertButton.addEventListener("click", function () {
   gameAlert.classList.add("hidden");
+
+  clearMobileInputState();
 });
 
 resetGame();
@@ -1941,20 +2045,20 @@ canvas.addEventListener("touchstart", (event) => {
   const touch = event.changedTouches[0];
   const point = getTouchPosition(touch);
 
-  if (isTouchOnPickupObject(point.x, point.y)) {
-  if (!mobileTap.active) {
-    mobileTap.active = true;
-    mobileTap.touchId = touch.identifier;
-    mobileTap.x = point.x;
-    mobileTap.y = point.y;
-  }
-
-  event.preventDefault();
-  return;
-  }
-
   if (isTouchOnPlayer(point.x, point.y) && !mobileMove.active) {
     startMobileMove(touch);
+    event.preventDefault();
+    return;
+  }
+
+  if (isTouchOnPickupObject(point.x, point.y)) {
+    if (!mobileTap.active) {
+      mobileTap.active = true;
+      mobileTap.touchId = touch.identifier;
+      mobileTap.x = point.x;
+      mobileTap.y = point.y;
+    }
+
     event.preventDefault();
     return;
   }
