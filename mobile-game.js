@@ -31,6 +31,7 @@ const mobileHomeButton = document.getElementById("mobileHomeButton");
 const mobileCloseGameButton = document.getElementById("mobileCloseGameButton");
 const announcementModal = document.getElementById("announcementModal");
 const closeAnnouncementButton = document.getElementById("closeAnnouncementButton");
+const announcementFrame = document.getElementById("announcementFrame");
 const bagStatusText = document.getElementById("bagStatusText");
 
 const keys = {};
@@ -60,6 +61,7 @@ const mobileTap = {
 };
 
 const rankingStorageKey = "forestCarryRanking";
+const announcementStorageKey = "forestCarryCandyAnnouncementDateMobile";
 
 const assets = {
   background: loadImage("assets/forest-background.png"),
@@ -86,11 +88,25 @@ const game = {
   deliveredWoodCount: 0,
   hasBag: false,
   bagAlertShown: false,
+  pausedByAlert: false,
   carryingRock: false,
   stunTime: 0,
   invincibleTime: 0,
   foxDenWarningCooldown: 0,
   tensionMode: false,
+  tutorialHintsSeen: {
+    wood: false,
+    tornado: false,
+    cabin: false,
+    fox: false,
+    findRock: false,
+    pickRock: false,
+    throwRock: false,
+  },
+  foxTutorialShown: false,
+  foxTutorialStage: "none",
+  tornadoTutorialActive: false,
+  tornadoTutorialDone: false,
 };
 
 const player = {
@@ -225,11 +241,25 @@ function resetGame() {
   game.deliveredWoodCount = 0;
   game.hasBag = false;
   game.bagAlertShown = false;
+  game.pausedByAlert = false;
   game.carryingRock = false;
   game.stunTime = 0;
   game.invincibleTime = 0;
   game.foxDenWarningCooldown = 0;
   game.tensionMode = false;
+  game.tutorialHintsSeen = {
+    wood: false,
+    tornado: false,
+    cabin: false,
+    fox: false,
+    findRock: false,
+    pickRock: false,
+    throwRock: false,
+  };
+  game.foxTutorialShown = false;
+  game.foxTutorialStage = "none";
+  game.tornadoTutorialActive = false;
+  game.tornadoTutorialDone = false;
   thrownRock.active = false;
   reflectedRock.active = false;
   stopMobileMove();
@@ -273,6 +303,33 @@ function resetGame() {
   draw();
 }
 
+function getTodayKey() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const date = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${date}`;
+}
+
+function shouldShowAnnouncementToday() {
+  return localStorage.getItem(announcementStorageKey) !== getTodayKey();
+}
+
+function showAnnouncementBeforeGame() {
+  if (!announcementModal) return false;
+
+  if (gameShell) {
+    gameShell.classList.remove("hidden");
+  }
+
+  if (announcementFrame) {
+    announcementFrame.src = "Busy-Wood-Announcement-Practice/index.html?userId=test123";
+  }
+
+  announcementModal.classList.remove("hidden");
+  return true;
+}
 function playBackgroundMusic() {
   if (!bgm) return;
 
@@ -301,6 +358,65 @@ function clearMobileInputState() {
 
   aim.active = false;
   updateThrowButtonState();
+}
+
+function showMobileTutorialHint(key, text) {
+  if (game.tutorialHintsSeen[key]) return;
+
+  game.tutorialHintsSeen[key] = true;
+  messageText.textContent = text;
+}
+
+function updateMobileTutorialFlow() {
+  if (!game.running || game.pausedByAlert) return;
+
+  if (game.foxTutorialStage === "findRock" && rock.visible && distance(player, rock) < 150) {
+    game.foxTutorialStage = "pickRock";
+    showMobileTutorialHint("pickRock", "點石頭撿起來，再用右下角按鈕丟狐狸！");
+  }
+}
+
+function startFoxMobileTutorial() {
+  if (game.foxTutorialShown) return;
+
+  game.foxTutorialShown = true;
+  game.foxTutorialStage = "foxAppeared";
+  game.pausedByAlert = true;
+
+  showMobileTutorialHint("fox", "狐狸來偷木頭了！");
+
+  setTimeout(() => {
+    if (game.running && game.foxTutorialStage === "foxAppeared") {
+      messageText.textContent = "";
+    }
+  }, 2000);
+
+  setTimeout(() => {
+    if (game.running && game.foxTutorialStage === "foxAppeared") {
+      game.pausedByAlert = false;
+      game.foxTutorialStage = "findRock";
+      showMobileTutorialHint("findRock", "快去找石頭，準備丟狐狸！");
+    }
+  }, 3000);
+}
+
+function canTornadoAffectPlayer() {
+  return game.tornadoTutorialDone;
+}
+
+function startTornadoMobileTutorial() {
+  if (game.tornadoTutorialDone || game.tornadoTutorialActive) return;
+
+  game.tornadoTutorialActive = true;
+  showMobileTutorialHint("tornado", "颱風靠近了，按住水獺拖曳快逃！");
+}
+
+function completeTornadoMobileTutorial() {
+  if (!game.tornadoTutorialActive || game.tornadoTutorialDone) return;
+
+  game.tornadoTutorialActive = false;
+  game.tornadoTutorialDone = true;
+  showMobileTutorialHint("cabin", "靠近小屋，點小屋放下木頭。");
 }
 
 
@@ -346,6 +462,18 @@ function startGame() {
     return;
   }
 
+  if (shouldShowAnnouncementToday()) {
+    nameScreen.classList.add("hidden");
+    showAnnouncementBeforeGame();
+    return;
+  }
+
+  startGameAfterAnnouncement();
+}
+
+function startGameAfterAnnouncement() {
+  const playerName = playerNameInput.value.trim();
+
   startScreen.classList.add("hidden");
   nameScreen.classList.add("hidden");
 
@@ -362,7 +490,8 @@ function startGame() {
   if (restartButton) {
   restartButton.disabled = false;
   }
-  messageText.textContent = `${playerName}，開始搬木頭吧！`;
+  messageText.textContent = `${playerName}，點木頭撿起，搬回小屋！`;
+  showMobileTutorialHint("wood", "點木頭撿起，搬回小屋！");
   requestAnimationFrame(gameLoop);
 }
 
@@ -404,7 +533,10 @@ function gameLoop(timestamp) {
   const deltaTime = (timestamp - game.lastTime) / 1000;
   game.lastTime = timestamp;
 
-  update(deltaTime);
+  if (!game.pausedByAlert) {
+    update(deltaTime);
+  }
+
   draw();
 
   if (game.running) {
@@ -424,6 +556,7 @@ function update(deltaTime) {
   }
 
   updateTensionMode();
+  updateMobileTutorialFlow();
   updateTornadoes(deltaTime);
   updateFoxHurt(deltaTime);
   updateFox(deltaTime);
@@ -660,13 +793,19 @@ function updateFox(deltaTime) {
 
   if (!fox.carryingWood) {
     fox.state = "goToCabin";
+
+    if (!game.foxTutorialShown) {
+      startFoxMobileTutorial();
+      return;
+    }
+
     moveFoxToPoint(getCabinCenter(), deltaTime);
 
     if (distance(fox, getCabinCenter()) < fox.stealRange) {
       fox.carryingWood = true;
       fox.stolenWoodIndex = getHiddenWoodIndexForFox();
       fox.state = "returnHome";
-      messageText.textContent = "狐狸偷到木頭了，快阻止牠回窩！";
+      messageText.textContent = "狐狸偷到木頭了，快找石頭阻止牠！";
     }
 
     return;
@@ -697,6 +836,13 @@ function updateTornadoes(deltaTime) {
 
     const playerDistance = distance(player, tornado);
     const playerInSafeZone = isPlayerInCabinSafeZone();
+    const tornadoCanAttack = canTornadoAffectPlayer();
+
+    if (!tornadoCanAttack && tornado.mode === "chase") {
+      tornado.mode = "patrol";
+      tornado.chaseTimer = 0;
+      tornado.chaseCooldown = 0;
+    }
 
     if (playerInSafeZone && tornado.mode === "chase") {
       tornado.mode = "patrol";
@@ -704,6 +850,7 @@ function updateTornadoes(deltaTime) {
     }
 
     if (
+      tornadoCanAttack &&
       !playerInSafeZone &&
       tornado.mode !== "chase" &&
       tornado.chaseCooldown === 0 &&
@@ -771,8 +918,10 @@ function chasePlayer(tornado, deltaTime) {
 
   const currentSpeed = tornado.chaseSpeed * getTornadoSpeedMultiplier();
 
-  tornado.x += (dx / length) * currentSpeed * deltaTime;
-  tornado.y += (dy / length) * currentSpeed * deltaTime;
+  const chaseSpeed = tornado.chaseSpeed * getTornadoSpeedMultiplier();
+
+  tornado.x += (dx / length) * chaseSpeed * deltaTime;
+  tornado.y += (dy / length) * chaseSpeed * deltaTime;
 }
 
 function patrolTornado(tornado, deltaTime) {
@@ -800,10 +949,10 @@ function patrolTornado(tornado, deltaTime) {
   }
 
   tornado.patrolTimer = 0;
-  const currentSpeed = tornado.speed * getTornadoSpeedMultiplier();
+  const patrolSpeed = tornado.speed * getTornadoSpeedMultiplier();
 
-  tornado.x += (dx / length) * currentSpeed * deltaTime;
-  tornado.y += (dy / length) * currentSpeed * deltaTime;
+  tornado.x += (dx / length) * patrolSpeed * deltaTime;
+  tornado.y += (dy / length) * patrolSpeed * deltaTime;
 }
 
 function getCabinCenter() {
@@ -853,6 +1002,7 @@ function moveFoxBack(deltaTime) {
 }
 
 function checkTornadoCollision() {
+  if (!canTornadoAffectPlayer()) return;
   if (game.stunTime > 0 || game.invincibleTime > 0) return;
 
   const hitTornado = tornadoes.find((tornado) => {
@@ -1018,7 +1168,7 @@ function isTouchOnPickupObject(x, y) {
 }
 
 function handleMobileTap(x, y) {
-  if (!game.running) return;
+  if (!game.running || game.pausedByAlert) return;
   if (game.carryingWood && isPointInCabin(x, y)) {
     if (!isPlayerInCabin()) {
       messageText.textContent = "靠近小屋後再點小屋放木頭。";
@@ -1077,10 +1227,15 @@ function handleMobileTap(x, y) {
 
     clearMobileInputState();
 
-    if (game.hasBag) {
-      messageText.textContent = `撿到木頭了！目前包包 ${game.carryingWoodCount}/3`;
-    } else {
-      messageText.textContent = "撿到木頭了，快搬回小屋！";
+    const shouldStartTornadoTutorial = !game.tornadoTutorialDone && !game.tornadoTutorialActive;
+    startTornadoMobileTutorial();
+
+    if (!shouldStartTornadoTutorial) {
+      if (game.hasBag) {
+        messageText.textContent = `撿到木頭了！目前包包 ${game.carryingWoodCount}/3`;
+      } else {
+        messageText.textContent = "撿到木頭了，快搬回小屋！";
+      }
     }
 
     return;
@@ -1119,6 +1274,8 @@ function pickUpRock() {
 
   clearMobileInputState();
 
+  game.foxTutorialStage = "throwRock";
+  showMobileTutorialHint("throwRock", "按住右下角石頭按鈕，拖曳方向後放開！");
   messageText.textContent = "撿起石頭了！按住右下角石頭按鈕瞄準狐狸。";
   updateThrowButton();
 }
@@ -1141,6 +1298,7 @@ function throwRock(targetX, targetY) {
   thrownRock.active = true;
 
   game.carryingRock = false;
+  game.foxTutorialStage = "done";
   updateThrowButton();
   messageText.textContent = "石頭丟出去了！";
 }
@@ -1917,6 +2075,17 @@ tutorialContinueButton.addEventListener("click", function () {
 });
 
 confirmNameButton.addEventListener("click", startGame);
+if (closeAnnouncementButton) {
+  closeAnnouncementButton.addEventListener("click", function () {
+    localStorage.setItem(announcementStorageKey, getTodayKey());
+
+    if (announcementModal) {
+      announcementModal.classList.add("hidden");
+    }
+
+    startGameAfterAnnouncement();
+  });
+}
 
 playerNameInput.addEventListener("keydown", function (event) {
   if (event.key === "Enter") {
@@ -2039,13 +2208,19 @@ canvas.addEventListener("touchcancel", (event) => {
 });
 
 canvas.addEventListener("touchstart", (event) => {
-  if (!game.running) return;
+  if (!game.running || game.pausedByAlert) return;
   if (event.changedTouches.length === 0) return;
 
   const touch = event.changedTouches[0];
   const point = getTouchPosition(touch);
 
   if (isTouchOnPlayer(point.x, point.y) && !mobileMove.active) {
+    if (game.tornadoTutorialActive && !game.tornadoTutorialDone) {
+      completeTornadoMobileTutorial();
+    } else if (game.carryingWood && !game.tutorialHintsSeen.cabin) {
+      showMobileTutorialHint("cabin", "靠近小屋，點小屋放下木頭。");
+    }
+
     startMobileMove(touch);
     event.preventDefault();
     return;
@@ -2074,7 +2249,7 @@ canvas.addEventListener("touchstart", (event) => {
 });
 
 canvas.addEventListener("touchmove", (event) => {
-  if (!game.running) return;
+  if (!game.running || game.pausedByAlert) return;
   if (!mobileMove.active) return;
 
   const touch = findTouchById(event.touches, mobileMove.touchId);
@@ -2088,7 +2263,7 @@ canvas.addEventListener("touchmove", (event) => {
 
 if (throwButton) {
   throwButton.addEventListener("touchstart", (event) => {
-  if (!game.running) return;
+  if (!game.running || game.pausedByAlert) return;
   if (!game.carryingRock) return;
   if (event.changedTouches.length === 0) return;
   if (mobileThrow.active) return;
@@ -2162,6 +2337,13 @@ if (throwButton) {
   event.preventDefault();
   });
 }
+
+
+
+
+
+
+
 
 
 
