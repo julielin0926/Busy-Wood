@@ -70,6 +70,8 @@ const game = {
   tornadoTutorialActive: false,
   tornadoTutorialDone: false,
   tornadoTutorialNeedsFreshInput: false,
+  foxTutorialShown: false,
+  foxTutorialStage: "none",
 };
 
 const player = {
@@ -216,6 +218,8 @@ function resetGame() {
   game.tornadoTutorialActive = false;
   game.tornadoTutorialDone = false;
   game.tornadoTutorialNeedsFreshInput = false;
+  game.foxTutorialShown = false;
+  game.foxTutorialStage = "none";
   game.startHintTimer = 1;
 
   tornadoes[0].x = tornadoes[0].startX;
@@ -377,8 +381,27 @@ function hideTutorialHint(key) {
   }
 }
 
+function setTutorialHint(text) {
+  game.tutorialHintText = text;
+  game.tutorialHintVisible = true;
+}
+
+function clearTutorialHint() {
+  game.tutorialHintText = "";
+  game.tutorialHintVisible = false;
+}
+
 function updateTutorialHints() {
   if (!game.running || game.pausedByAlert) return;
+
+  if (game.foxTutorialStage === "goToRock") {
+    const nearRock = rock.visible && distance(player, rock) < 110;
+
+    if (nearRock) {
+      game.foxTutorialStage = "pickupRock";
+      setTutorialHint("靠近石頭時，按 Space 或 E 撿石頭");
+    }
+  }
 }
 
 function update(deltaTime) {
@@ -633,6 +656,29 @@ function updateFoxHurt(deltaTime) {
   }
 }
 
+function startFoxTutorial() {
+  if (game.foxTutorialShown) return;
+
+  game.foxTutorialShown = true;
+  game.foxTutorialStage = "foxAppeared";
+  game.pausedByAlert = true;
+
+  setTutorialHint("狐狸來偷木頭了！");
+
+  setTimeout(() => {
+    if (game.running && game.foxTutorialStage === "foxAppeared") {
+      clearTutorialHint();
+    }
+  }, 2000);
+
+  setTimeout(() => {
+    if (game.running && game.foxTutorialStage === "foxAppeared") {
+      game.pausedByAlert = false;
+      game.foxTutorialStage = "goToRock";
+      setTutorialHint("快去找石頭，準備丟狐狸！");
+    }
+  }, 3000);
+}
 function updateFox(deltaTime) {
   if (fox.stealCooldown > 0) {
     fox.stealCooldown = Math.max(0, fox.stealCooldown - deltaTime);
@@ -655,6 +701,12 @@ function updateFox(deltaTime) {
 
   if (!fox.carryingWood) {
     fox.state = "goToCabin";
+
+    if (!game.foxTutorialShown) {
+      startFoxTutorial();
+      return;
+    }
+
     moveFoxToPoint(getCabinCenter(), deltaTime);
 
     if (distance(fox, getCabinCenter()) < fox.stealRange) {
@@ -682,6 +734,10 @@ function updateFox(deltaTime) {
   }
 }
 
+function canTornadoChasePlayer() {
+  return game.tornadoTutorialDone;
+}
+
 function updateTornadoes(deltaTime) {
   if (game.tornadoTutorialActive) {
   return;
@@ -697,12 +753,19 @@ function updateTornadoes(deltaTime) {
     const playerDistance = distance(player, tornado);
     const playerInSafeZone = isPlayerInCabinSafeZone();
 
+    if (!canTornadoChasePlayer() && tornado.mode === "chase") {
+      tornado.mode = "patrol";
+      tornado.chaseTimer = 0;
+      tornado.chaseCooldown = tornado.chaseCooldownDuration;
+    }
+
     if (playerInSafeZone && tornado.mode === "chase") {
       tornado.mode = "patrol";
       tornado.chaseCooldown = tornado.chaseCooldownDuration;
     }
 
     if (
+      canTornadoChasePlayer() &&
       !playerInSafeZone &&
       tornado.mode !== "chase" &&
       tornado.chaseCooldown === 0 &&
@@ -831,7 +894,7 @@ function moveFoxBack(deltaTime) {
 }
 
 function checkTornadoCollision() {
-  if (game.tornadoTutorialActive) return;
+  if (!game.tornadoTutorialDone) return;
   if (game.stunTime > 0 || game.invincibleTime > 0) return;
 
   const hit = tornadoes.some((tornado) => distance(player, tornado) < tornado.radius + player.size * 0.28);
@@ -923,6 +986,11 @@ function pickUpRock() {
   rock.visible = false;
   messageText.textContent = "撿起石頭了！之後可以用滑鼠瞄準丟向狐狸。";
   hideTutorialHint("rock");
+
+  if (game.foxTutorialStage === "pickupRock") {
+    game.foxTutorialStage = "throwRock";
+    setTutorialHint("按住滑鼠左鍵瞄準，放開丟石頭");
+  }
 }
 
 function tryPickUpRock() {
@@ -958,6 +1026,11 @@ function throwRock(targetX, targetY) {
   game.carryingRock = false;
   messageText.textContent = "石頭丟出去了！";
   hideTutorialHint("throwRock");
+
+  if (game.foxTutorialStage === "throwRock") {
+    game.foxTutorialStage = "done";
+    clearTutorialHint();
+  }
 }
 
 function dropStolenWood() {
@@ -1807,6 +1880,9 @@ canvas.addEventListener("mouseup", (event) => {
 
   aim.active = false;
 });
+
+
+
 
 
 
