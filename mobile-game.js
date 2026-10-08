@@ -29,6 +29,8 @@ const mobileRankingList = document.getElementById("mobileRankingList");
 const mobileRestartButton = document.getElementById("mobileRestartButton");
 const mobileHomeButton = document.getElementById("mobileHomeButton");
 const mobileCloseGameButton = document.getElementById("mobileCloseGameButton");
+const announcementModal = document.getElementById("announcementModal");
+const closeAnnouncementButton = document.getElementById("closeAnnouncementButton");
 
 const keys = {};
 
@@ -62,6 +64,9 @@ const assets = {
   background: loadImage("assets/forest-background.png"),
   otter: loadImage("assets/otter.png"),
   fox: loadImage("assets/fox.png"),
+  foxAlert: loadImage("assets/fox-alert.png"),
+  bagEmpty: loadImage("assets/otter-bag-preview-v2.png"),
+  bagFull: loadImage("assets/otter-bag-full-preview-v2.png"),
   wood: loadImage("assets/wood.png"),
   rock: loadImage("assets/rock.png"),
   foxDen: loadImage("assets/fox-den.png"),
@@ -75,10 +80,16 @@ const game = {
   score: 0,
   carryingWood: false,
   carryingWoodIndex: null,
+  carryingWoodCount: 0,
+  carryingWoodIndexes: [],
+  deliveredWoodCount: 0,
+  hasBag: false,
+  bagAlertShown: false,
   carryingRock: false,
   stunTime: 0,
   invincibleTime: 0,
   foxDenWarningCooldown: 0,
+  tensionMode: false,
 };
 
 const player = {
@@ -133,6 +144,14 @@ const thrownRock = {
   maxDistance: 260,
 };
 
+const reflectedRock = {
+  x: 0,
+  y: 0,
+  vx: 0,
+  vy: 0,
+  size: 18,
+  active: false,
+};
 const aim = {
   active: false,
   mouseX: 0,
@@ -200,10 +219,18 @@ function resetGame() {
   game.score = 0;
   game.carryingWood = false;
   game.carryingWoodIndex = null;
+  game.carryingWoodCount = 0;
+  game.carryingWoodIndexes = [];
+  game.deliveredWoodCount = 0;
+  game.hasBag = false;
+  game.bagAlertShown = false;
   game.carryingRock = false;
   game.stunTime = 0;
   game.invincibleTime = 0;
   game.foxDenWarningCooldown = 0;
+  game.tensionMode = false;
+  thrownRock.active = false;
+  reflectedRock.active = false;
   stopMobileMove();
   mobileThrow.active = false;
   mobileThrow.touchId = null;
@@ -381,10 +408,12 @@ function update(deltaTime) {
     return;
   }
 
+  updateTensionMode();
   updateTornadoes(deltaTime);
   updateFoxHurt(deltaTime);
   updateFox(deltaTime);
   updateThrownRock(deltaTime);
+  updateReflectedRock(deltaTime);
   updateRockRespawn(deltaTime);
   updateFoxDenWarning(deltaTime);
 
@@ -403,6 +432,20 @@ function update(deltaTime) {
   updateHud();
 }
 
+function updateTensionMode() {
+  if (game.tensionMode || game.timeLeft > 30) return;
+
+  game.tensionMode = true;
+  messageText.textContent = "剩下 30 秒！狐狸和龍捲風變得更急了！";
+}
+
+function getFoxSpeedMultiplier() {
+  return game.tensionMode ? 1.25 : 1;
+}
+
+function getTornadoSpeedMultiplier() {
+  return game.tensionMode ? 1.18 : 1;
+}
 function updateRockRespawn(deltaTime) {
   if (rock.respawnTimer <= 0) return;
 
@@ -429,6 +472,15 @@ function updateThrownRock(deltaTime) {
   return;
 }
 
+  const hitTornado = tornadoes.find((tornado) => {
+    return distance(thrownRock, tornado) < tornado.radius + thrownRock.size;
+  });
+
+  if (hitTornado) {
+    reflectRockFromTornado(hitTornado);
+    return;
+  }
+
   if (isFoxInDen() && distance(thrownRock, fox) < fox.size) {
     thrownRock.active = false;
     startRockRespawn();
@@ -444,6 +496,61 @@ function updateThrownRock(deltaTime) {
   }
 }
 
+function reflectRockFromTornado(tornado) {
+  const dx = player.x - tornado.x;
+  const dy = player.y - tornado.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const speed = 560;
+
+  reflectedRock.x = tornado.x;
+  reflectedRock.y = tornado.y;
+  reflectedRock.vx = (dx / length) * speed;
+  reflectedRock.vy = (dy / length) * speed;
+  reflectedRock.active = true;
+
+  thrownRock.active = false;
+  startRockRespawn();
+
+  messageText.textContent = "石頭打到龍捲風，被甩回來了！";
+}
+
+function updateReflectedRock(deltaTime) {
+  if (!reflectedRock.active) return;
+
+  reflectedRock.x += reflectedRock.vx * deltaTime;
+  reflectedRock.y += reflectedRock.vy * deltaTime;
+
+  if (
+    reflectedRock.x < -40 ||
+    reflectedRock.x > canvas.width + 40 ||
+    reflectedRock.y < -40 ||
+    reflectedRock.y > canvas.height + 40
+  ) {
+    reflectedRock.active = false;
+    return;
+  }
+
+  if (distance(reflectedRock, player) < player.size * 0.35 + reflectedRock.size) {
+    reflectedRock.active = false;
+    game.stunTime = 1.8;
+    game.invincibleTime = 2.5;
+
+    if (game.carryingWood) {
+      const carriedWood = woods[game.carryingWoodIndex];
+
+      game.carryingWood = false;
+      game.carryingWoodIndex = null;
+
+      if (carriedWood) {
+        carriedWood.visible = true;
+        carriedWood.x = clamp(player.x - 42, spawnArea.minX, spawnArea.maxX);
+        carriedWood.y = clamp(player.y + 24, spawnArea.minY, spawnArea.maxY);
+      }
+    }
+
+    messageText.textContent = "被甩回來的石頭砸到，暫時不能動！";
+  }
+}
 function hitFoxWithRock() {
   fox.hurtTime = 5;
 
@@ -617,8 +724,10 @@ function chasePlayer(tornado, deltaTime) {
 
   if (length < 1) return;
 
-  tornado.x += (dx / length) * tornado.chaseSpeed * deltaTime;
-  tornado.y += (dy / length) * tornado.chaseSpeed * deltaTime;
+  const currentSpeed = tornado.chaseSpeed * getTornadoSpeedMultiplier();
+
+  tornado.x += (dx / length) * currentSpeed * deltaTime;
+  tornado.y += (dy / length) * currentSpeed * deltaTime;
 }
 
 function patrolTornado(tornado, deltaTime) {
@@ -646,8 +755,10 @@ function patrolTornado(tornado, deltaTime) {
   }
 
   tornado.patrolTimer = 0;
-  tornado.x += (dx / length) * tornado.speed * deltaTime;
-  tornado.y += (dy / length) * tornado.speed * deltaTime;
+  const currentSpeed = tornado.speed * getTornadoSpeedMultiplier();
+
+  tornado.x += (dx / length) * currentSpeed * deltaTime;
+  tornado.y += (dy / length) * currentSpeed * deltaTime;
 }
 
 function getCabinCenter() {
@@ -729,7 +840,8 @@ function moveFoxToPoint(target, deltaTime) {
 
   if (length < 1) return;
 
-  const currentSpeed = fox.hurtTime > 0 ? fox.speed * 0.5 : fox.speed;
+  const baseSpeed = fox.speed * getFoxSpeedMultiplier();
+  const currentSpeed = fox.hurtTime > 0 ? baseSpeed * 0.5 : baseSpeed;
 
   fox.x += (dx / length) * currentSpeed * deltaTime;
   fox.y += (dy / length) * currentSpeed * deltaTime;
@@ -840,16 +952,27 @@ function handleMobileTap(x, y) {
 
     game.carryingWood = false;
     game.carryingWoodIndex = null;
+    game.carryingWoodCount = 0;
+    game.carryingWoodIndexes = [];
+
     game.score += 1;
+    game.deliveredWoodCount += 1;
 
     if (carriedWood) {
       spawnWood(carriedWood);
     }
 
     updateHud();
+
+    if (!game.hasBag && game.deliveredWoodCount >= 3) {
+      messageText.textContent = "成功放下木頭，分數 +1！";
+      unlockBagIfNeeded();
+      return;
+    }
+
     messageText.textContent = "成功放下木頭，分數 +1！";
     return;
-  }
+    }
 
   const tappedWoodIndex = woods.findIndex((wood) => {
   return wood.visible && distance({ x, y }, wood) < 85;
@@ -863,6 +986,8 @@ function handleMobileTap(x, y) {
 
     game.carryingWood = true;
     game.carryingWoodIndex = tappedWoodIndex;
+    game.carryingWoodCount = 1;
+    game.carryingWoodIndexes = [tappedWoodIndex];
     woods[tappedWoodIndex].visible = false;
     messageText.textContent = "撿到木頭了，快搬回小屋！";
     return;
@@ -946,6 +1071,16 @@ function getHiddenWoodIndexForFox() {
   }
 
   return null;
+}
+
+function unlockBagIfNeeded() {
+  if (game.hasBag || game.bagAlertShown) return;
+  if (game.deliveredWoodCount < 3) return;
+
+  game.hasBag = true;
+  game.bagAlertShown = true;
+
+  showGameAlert("獲得包包！現在可以一次搬 3 根木頭。");
 }
 
 function interact() {
@@ -1153,12 +1288,21 @@ function draw() {
   drawRock(thrownRock.x, thrownRock.y);
   }
 
+  if (reflectedRock.active) {
+  drawRock(reflectedRock.x, reflectedRock.y);
+  }
+
   if (aim.active) {
     drawAimLine();
   }
 
   tornadoes.forEach(drawTornado);
   drawFox(fox.x, fox.y);
+
+  if (shouldShowFoxWarning()) {
+    drawFoxWarning(fox.x, fox.y);
+  }
+
   drawPlayer();
 }
 
@@ -1459,6 +1603,36 @@ function drawFox(x, y) {
   }
 }
 
+function shouldShowFoxWarning() {
+  return (
+    fox.carryingWood ||
+    fox.state === "goToCabin" ||
+    fox.state === "returnHome" ||
+    distance(fox, foxDen) > foxDen.radius + 20
+  );
+}
+
+function drawFoxWarning(x, y) {
+  if (assets.foxAlert.complete) {
+    drawImageCentered(assets.foxAlert, x, y - 56, 42, 42);
+    return;
+  }
+
+  ctx.save();
+  ctx.fillStyle = "#ff4d2d";
+  ctx.strokeStyle = "#fff7d6";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x, y - 48, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 24px Microsoft JhengHei";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("!", x, y - 49);
+  ctx.restore();
+}
 function drawAimLine() {
   const target = getLimitedAimTarget();
 
@@ -1884,3 +2058,6 @@ if (throwButton) {
   event.preventDefault();
   });
 }
+
+
+

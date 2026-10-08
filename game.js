@@ -21,10 +21,13 @@ const gameAlert = document.getElementById("gameAlert");
 const gameAlertText = document.getElementById("gameAlertText");
 const closeAlertButton = document.getElementById("closeAlertButton");
 const bgm = document.getElementById("bgm");
+const announcementModal = document.getElementById("announcementModal");
+const closeAnnouncementButton = document.getElementById("closeAnnouncementButton");
 
 const keys = {};
 let openedTutorialFromGame = false;
 const rankingStorageKey = "forestCarryRanking";
+const announcementStorageKey = "forestCarryCandyAnnouncementDate";
 
 const assets = {
   background: loadImage("assets/forest-background.png"),
@@ -254,6 +257,26 @@ function resetGame() {
   draw();
 }
 
+function getTodayKey() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const date = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${date}`;
+}
+
+function shouldShowAnnouncementToday() {
+  return localStorage.getItem(announcementStorageKey) !== getTodayKey();
+}
+
+function showAnnouncementBeforeGame() {
+  if (!announcementModal) return false;
+
+  announcementModal.classList.remove("hidden");
+  return true;
+}
+
 function playBackgroundMusic() {
   if (!bgm) return;
 
@@ -309,6 +332,18 @@ function startGame() {
     return;
   }
 
+  if (shouldShowAnnouncementToday()) {
+    nameScreen.classList.add("hidden");
+    showAnnouncementBeforeGame();
+    return;
+  }
+
+  startGameAfterAnnouncement();
+}
+
+function startGameAfterAnnouncement() {
+  const playerName = playerNameInput.value.trim();
+
   startScreen.classList.add("hidden");
   nameScreen.classList.add("hidden");
   gameShell.classList.remove("hidden");
@@ -316,8 +351,13 @@ function startGame() {
   resetGame();
   game.running = true;
   playBackgroundMusic();
-  restartButton.disabled = false;
+
+  if (restartButton) {
+    restartButton.disabled = false;
+  }
+
   messageText.textContent = `${playerName}，開始搬木頭吧！`;
+  showTutorialHint("wood", "靠近木頭，按 Space 撿木頭");
   requestAnimationFrame(gameLoop);
 }
 
@@ -1831,6 +1871,18 @@ tutorialContinueButton.addEventListener("click", function () {
 });
 
 confirmNameButton.addEventListener("click", startGame);
+
+if (closeAnnouncementButton) {
+  closeAnnouncementButton.addEventListener("click", function () {
+    localStorage.setItem(announcementStorageKey, getTodayKey());
+
+    if (announcementModal) {
+      announcementModal.classList.add("hidden");
+    }
+
+    startGameAfterAnnouncement();
+  });
+}
 
 playerNameInput.addEventListener("keydown", function (event) {
   if (event.key === "Enter") {

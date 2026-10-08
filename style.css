@@ -582,3 +582,47 @@ button:disabled {
 #homeButton:hover {
   background: #70451f;
 }
+
+.announcement-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 43, 25, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+}
+
+.announcement-modal.hidden {
+  display: none;
+}
+
+.announcement-box {
+  width: min(820px, 92vw);
+  padding: 18px;
+  background: rgba(255, 248, 220, 0.98);
+  border: 5px solid #8b5a2b;
+  border-radius: 24px;
+  box-shadow: 0 14px 0 rgba(92, 58, 30, 0.25);
+  text-align: center;
+}
+
+.announcement-box img {
+  display: block;
+  width: 100%;
+  border-radius: 14px;
+}
+
+.announcement-box button {
+  margin-top: 16px;
+  padding: 12px 32px;
+  border-radius: 999px;
+  background: #2f7d46;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.announcement-box button:hover {
+  background: #256b3a;
+}
