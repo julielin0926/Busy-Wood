@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf8" />
+    <title>活動公告</title>
+    <style>
+        body {
+            background: #ffffff;
+            background-size: cover;
+            background-attachment: fixed;
+            margin: 0 auto;
+            padding: 0 0;
+            width: 100%;
+            text-align: center;
+            overflow-y: auto;
+        }
+    </style>
+    <script language="JavaScript">
+        window.onload = function() {
+            // 1. 取得當前網址的所有參數
+            var urlParams = new URLSearchParams(window.location.search);
+            
+            // 2. 提取 userId 的值
+            var userId = urlParams.get('userId');
+            
+            // 3. 抓取 area 標籤 (改用更通用的選取方式)
+            // 直接抓取頁面上第一個 area 標籤，這在簡單的公告頁最有效
+            var areaTag = document.querySelector('area');
+            
+            // 4. 如果有找到 userId 且標籤存在，則執行修改
+            if (userId && areaTag) {
+                // 取得原始連結
+                var originalHref = areaTag.getAttribute('href');
+                
+                // 串接新的參數 (判斷原本是否已有其他參數)
+                var separator = originalHref.indexOf('?') !== -1 ? '&' : '?';
+                var newHref = originalHref + separator + 'xv_account=' + encodeURIComponent(userId);
+                
+                // 更新連結
+                areaTag.setAttribute('href', newHref);
+                
+                console.log("連結已成功更新為: " + newHref);
+            } else {
+                console.warn("未能更新連結：請檢查網址是否有 ?userId=... 或頁面是否存在 area 標籤");
+            }
+        };
+    </script>
+</head>
+<body>
+  <div style="text-align:center">
+    <img src="images/candy-announcement.png" usemap="#Map" border="0" width="800" height="400" />
+  </div>
+
+  <map name="Map" id="Map">
+    <area shape="rect" coords="0,0,800,400" href="https://example.com/busy-wood-candy-test" />
+  </map>
+</body>
+</html>

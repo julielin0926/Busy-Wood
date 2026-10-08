@@ -23,6 +23,7 @@ const closeAlertButton = document.getElementById("closeAlertButton");
 const bgm = document.getElementById("bgm");
 const announcementModal = document.getElementById("announcementModal");
 const closeAnnouncementButton = document.getElementById("closeAnnouncementButton");
+const announcementFrame = document.getElementById("announcementFrame");
 
 const keys = {};
 let openedTutorialFromGame = false;
@@ -272,6 +273,10 @@ function shouldShowAnnouncementToday() {
 
 function showAnnouncementBeforeGame() {
   if (!announcementModal) return false;
+
+  if (announcementFrame) {
+    announcementFrame.src = "Busy-Wood-Announcement-Practice/index.html?userId=test123";
+  }
 
   announcementModal.classList.remove("hidden");
   return true;
